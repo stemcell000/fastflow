@@ -1,0 +1,89 @@
+{\rtf1\ansi\ansicpg1252\cocoartf2867
+\cocoatextscaling0\cocoaplatform0{\fonttbl\f0\fnil\fcharset0 Menlo-Regular;}
+{\colortbl;\red255\green255\blue255;\red202\green202\blue202;\red70\green137\blue204;\red212\green212\blue212;
+}
+{\*\expandedcolortbl;;\cssrgb\c83137\c83137\c83137;\cssrgb\c33725\c61176\c83922;\cssrgb\c86275\c86275\c86275;
+}
+\paperw11900\paperh16840\margl1440\margr1440\vieww11520\viewh8400\viewkind0
+\deftab720
+\pard\pardeftab720\partightenfactor0
+
+\f0\fs24 \cf0 \expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 \
+\
+\pard\pardeftab720\partightenfactor0
+\cf0 \strokec3 Table\strokec2  protocols \{\
+  id \strokec3 integer\strokec2  [primary \strokec3 key\strokec2 ]\
+  created_at \strokec3 timestamp\strokec2 \
+  sample_id \strokec3 integer\strokec2 \
+\}\
+\
+\strokec3 Table\strokec2  samples \{\
+  id \strokec3 integer\strokec2  [primary \strokec3 key\strokec2 ]\
+  created_at \strokec3 timestamp\strokec2 \
+\}\
+\
+\strokec3 Table\strokec2  ngs_samples \{\
+  id \strokec3 integer\strokec2  [primary \strokec3 key\strokec2 ]\
+  protocol_id \strokec3 integer\strokec2 \
+\}\
+\
+\strokec3 Table\strokec2  sequencing_batches \{\
+  id \strokec3 integer\strokec2  [primary \strokec3 key\strokec2 ]\
+  ngs_sample_id \strokec3 integer\strokec2 \
+\}\
+\
+\strokec3 Table\strokec2  sequencing_batch_files \{\
+  id \strokec3 integer\strokec2  [primary \strokec3 key\strokec2 ]\
+  file \strokec3 file\strokec2 \
+  sequencing_batch_id \strokec3 integer\strokec2 \
+\}\
+\
+\strokec3 Table\strokec2  sequencing_products \{\
+  id \strokec3 integer\strokec2  [primary \strokec3 key\strokec2 ]\
+  sequencing_batch_id \strokec3 integer\strokec2 \
+\}\
+\
+\strokec3 Table\strokec2  fastq \{\
+  id \strokec3 integer\strokec2  [primary \strokec3 key\strokec2 ]\
+  sequencing_products_id \strokec3 integer\strokec2 \
+\}\
+\
+\strokec3 Table\strokec2  fastq_file \{\
+  id \strokec3 integer\strokec2  [primary \strokec3 key\strokec2 ]\
+  fastq_id \strokec3 integer\strokec2 \
+  file \strokec3 file\strokec2 \
+\}\
+\
+\strokec3 Table\strokec2  pipelines \{\
+  id \strokec3 integer\strokec2  [primary \strokec3 key\strokec2 ] \
+  fastq_id \strokec3 integer\strokec2   \
+\}\
+\
+\strokec3 Table\strokec2  scripts \{\
+  id \strokec3 integer\strokec2  [primary \strokec3 key\strokec2 ]\
+  pipeline_id \strokec3 integer\strokec2 \
+\}\
+\
+\strokec3 Table\strokec2  settings \{\
+  id \strokec3 integer\strokec2  [primary \strokec3 key\strokec2 ]\
+  script_id \strokec3 integer\strokec2 \
+\}\
+\
+\strokec3 Table\strokec2  counts \{\
+  id \strokec3 integer\strokec2  [primary \strokec3 key\strokec2 ]\
+  pipeline_id \strokec3 integer\strokec2 \
+\}\
+\
+\strokec3 Ref\strokec4 :\strokec2  protocols\strokec4 .\strokec2 sample_id > samples\strokec4 .\strokec2 id\
+\strokec3 Ref\strokec4 :\strokec2  ngs_samples\strokec4 .\strokec2 protocol_id > protocols\strokec4 .\strokec2 id\
+\strokec3 Ref\strokec4 :\strokec2  sequencing_batches\strokec4 .\strokec2 ngs_sample_id > ngs_samples\strokec4 .\strokec2 id\
+\strokec3 Ref\strokec4 :\strokec2  sequencing_batch_files\strokec4 .\strokec2 sequencing_batch_id > sequencing_batches\strokec4 .\strokec2 id\
+\strokec3 Ref\strokec4 :\strokec2  sequencing_products\strokec4 .\strokec2 sequencing_batch_id > sequencing_batches\strokec4 .\strokec2 id\
+\strokec3 Ref\strokec4 :\strokec2  fastq\strokec4 .\strokec2 sequencing_products_id > sequencing_products\strokec4 .\strokec2 id\
+\strokec3 Ref\strokec4 :\strokec2  fastq_file\strokec4 .\strokec2 fastq_id > fastq\strokec4 .\strokec2 id\
+\strokec3 Ref\strokec4 :\strokec2  pipelines\strokec4 .\strokec2 fastq_id > fastq\strokec4 .\strokec2 id\
+\strokec3 Ref\strokec4 :\strokec2  scripts\strokec4 .\strokec2 pipeline_id > pipelines\strokec4 .\strokec2 id\
+\strokec3 Ref\strokec4 :\strokec2  settings\strokec4 .\strokec2 script_id > scripts\strokec4 .\strokec2 id\
+\strokec3 Ref\strokec4 :\strokec2  counts\strokec4 .\strokec2 pipeline_id > pipelines\strokec4 .\strokec2 id\
+}

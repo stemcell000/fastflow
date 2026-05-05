@@ -1,0 +1,109 @@
+services:
+
+  # ── PostgreSQL ───────────────────────────────────────────────────────────────
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - backend
+
+  # ── Redis ────────────────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - backend
+
+  # ── Django (Gunicorn) ────────────────────────────────────────────────────────
+  web:
+    build:
+      context: .
+      dockerfile: docker/web/Dockerfile
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DJANGO_SETTINGS_MODULE: core.settings
+      POSTGRES_HOST: db
+      REDIS_HOST: redis
+    volumes:
+      - ./staticfiles:/app/staticfiles   # dossier existant à la racine
+      - ./media:/app/media               # dossier existant à la racine
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - backend
+
+  # ── Celery Beat ──────────────────────────────────────────────────────────────
+  celery-beat:
+    build:
+      context: .
+      dockerfile: docker/web/Dockerfile
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DJANGO_SETTINGS_MODULE: core.settings
+      POSTGRES_HOST: db
+      REDIS_HOST: redis
+    volumes:
+      - ./data:/app/celerybeat           # persist le schedule sur disque
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - backend
+    command: >
+      celery -A core beat
+        --loglevel=info
+        --scheduler django_celery_beat.schedulers:DatabaseScheduler
+        --pidfile=/app/celerybeat/celerybeat.pid
+        --schedule=/app/celerybeat/celerybeat-schedule
+
+  # ── Nginx ────────────────────────────────────────────────────────────────────
+  nginx:
+    build:
+      context: .
+      dockerfile: docker/nginx/Dockerfile
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./staticfiles:/app/staticfiles:ro
+      - ./media:/app/media:ro
+    depends_on:
+      - web
+    networks:
+      - backend
+
+# ── Volumes ───────────────────────────────────────────────────────────────────
+volumes:
+  postgres_data:
+  redis_data:
+
+# ── Réseau ────────────────────────────────────────────────────────────────────
+networks:
+  backend:
+    driver: bridge

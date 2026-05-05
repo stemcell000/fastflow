@@ -1,71 +1,52 @@
-# authentication/backends.py
-
 import logging
-from ldap3 import Server, Connection, ALL, SUBTREE
-from django.contrib.auth.backends import BaseBackend
-from django.core.exceptions import ObjectDoesNotExist
-from authentication.models import CustomUser
-import environ
-from pathlib import Path
+from django.contrib.auth.backends import ModelBackend
+from django.contrib.auth import get_user_model
 
-env = environ.Env()
-#environ.Env.read_env()
-env.read_env(Path(__file__).resolve().parent.parent / 'core' / '.env')
+logger = logging.getLogger(__name__)
+User = get_user_model()
 
-logger = logging.getLogger('django_auth_ldap')
 
-class CustomLDAPBackend(BaseBackend):
-    def __init__(self):
-        self.server_uri = env('LDAP_SERVER_URI')
-        self.bind_dn = env('LDAP_BIND_DN')
-        self.bind_password = env('LDAP_BIND_PASSWORD')
-        self.search_base = env('LDAP_SEARCH_BASE')
-        self.search_filter = "(sAMAccountName=%(user)s)"
-        self.server = Server(self.server_uri, get_info=ALL)
-    
+class RestrictedModelBackend(ModelBackend):
+    """
+    Fallback sur la table Django — uniquement pour is_staff et is_superuser.
+
+    Déclenché automatiquement par Django quand LDAPBackend retourne None, ce qui
+    arrive dans les cas suivants :
+      - Serveur LDAP injoignable (poste hors réseau, panne)
+      - Mauvais LDAP_BIND_DN / LDAP_BIND_PASSWORD
+      - Utilisateur non trouvé dans l'AD
+
+    Note : django-auth-ldap avale silencieusement les LDAPError et retourne None,
+    ce qui permet à Django de passer au backend suivant sans lever d'exception.
+    """
+
     def authenticate(self, request, username=None, password=None, **kwargs):
-        username = username or kwargs.get('username')
-        password = password or kwargs.get('password')
-
-        logger.debug(f'CustomLDAPBackend authenticate called with username={username}')
-
         if not username or not password:
-            logger.debug('Missing username or password, falling back')
             return None
 
-        # LDAP admin bind and search
-        admin_conn = Connection(self.server, user=self.bind_dn, password=self.bind_password, auto_bind=True)
-        if not admin_conn.bind():
-            logger.error(f'Admin bind failed: {admin_conn.result}')
+        try:
+            user = User.objects.get(username=username)
+        except User.DoesNotExist:
             return None
 
-        user_search_filter = self.search_filter % {'user': username}
-        logger.debug(f'Searching with filter: {user_search_filter}')
-        admin_conn.search(self.search_base, user_search_filter, attributes=['distinguishedName'])
+        # Restriction : uniquement staff et superuser
+        if not (user.is_staff or user.is_superuser):
+            logger.debug(
+                "Fallback table refusé pour '%s' — non staff/superuser", username
+            )
+            return None
 
-        if len(admin_conn.entries) == 0:
-            logger.debug(f'No user found for filter: {user_search_filter}')
-            return None  # <--- important for fallback
-
-        user_dn = admin_conn.entries[0].distinguishedName.value
-        logger.debug(f'User DN: {user_dn}')
-
-        user_conn = Connection(self.server, user=user_dn, password=password)
-        if user_conn.bind():
-            logger.debug('User bind successful')
-            try:
-                user = CustomUser.objects.get(username=username)
-            except ObjectDoesNotExist:
-                user = CustomUser(username=username)
-                user.save()
+        if user.check_password(password) and self.user_can_authenticate(user):
+            logger.info(
+                "Utilisateur '%s' authentifié via fallback table (LDAP indisponible)",
+                username,
+            )
             return user
-        else:
-            logger.error(f'User bind failed: {user_conn.result}')
-            return None
 
-    
+        return None
+
     def get_user(self, user_id):
         try:
-            return CustomUser.objects.get(pk=user_id)
-        except CustomUser.DoesNotExist:
+            return User.objects.get(pk=user_id)
+        except User.DoesNotExist:
             return None

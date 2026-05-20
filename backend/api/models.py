@@ -177,3 +177,7 @@ class Analysis(models.Model):
 
     def __str__(self):
         return f"Analysis #{self.pk} (Pipeline #{self.pipeline_id})"
+    
+    class Meta:
+        verbose_name = "Analysis"
+        verbose_name_plural = "Analyses"

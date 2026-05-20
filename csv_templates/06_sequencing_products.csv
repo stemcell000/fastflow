@@ -1,0 +1,2 @@
+sequencing_batch_id,date,sequencing_machine,flowcell,read_length,read_depth,phix_proportion,custom_recipe,custom_recipe_start,custom_recipe_end
+1,2024-01-15,NextSeq 500,H7YNLBGXN,150,30000000,1.5,false,,

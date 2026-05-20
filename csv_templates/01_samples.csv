@@ -1,0 +1,2 @@
+name,project_name,sample_type,plasmid_number,production_number,biological_model,organ,serotype,condition,description
+Sample_A,Project_Vision_2024,cell_line,42,7,Mouse retina,Retina,AAV9,Treated,Primary retinal cells treated with AAV9

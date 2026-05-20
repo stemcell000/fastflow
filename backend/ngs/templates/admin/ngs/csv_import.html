@@ -1,0 +1,56 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block content %}
+<h1>Import CSV — {{ opts.verbose_name_plural|capfirst }}</h1>
+
+{% if messages %}
+<ul class="messagelist">
+  {% for message in messages %}
+  <li class="{{ message.tags }}">{{ message }}</li>
+  {% endfor %}
+</ul>
+{% endif %}
+
+<div style="background:#fff;padding:24px;border:1px solid #ddd;border-radius:4px;max-width:640px;">
+
+  <div style="background:#e8f4f8;border-left:4px solid #417690;padding:12px 16px;margin-bottom:20px;border-radius:2px;">
+    <strong>Ordre d'import obligatoire</strong><br>
+    <small style="color:#555;">
+      samples → protocols → ngs_samples → sequencing_batches →
+      sequencing_batch_files → sequencing_products → fastq →
+      fastq_files → pipelines → scripts → settings → counts → analysis
+    </small>
+  </div>
+
+  <form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+
+    <p>
+      <label for="csv_file"><strong>Fichier CSV :</strong></label><br>
+      <input
+        type="file"
+        name="csv_file"
+        id="csv_file"
+        accept=".csv"
+        style="margin-top:8px;padding:4px;"
+      >
+    </p>
+
+    <p style="color:#666;font-size:0.85em;margin-top:4px;">
+      Encodage attendu : UTF-8 (avec ou sans BOM). Les colonnes FileField
+      sont ignorées à l'import — les fichiers doivent être uploadés
+      manuellement depuis la fiche de l'objet.
+    </p>
+
+    <p style="margin-top:16px;">
+      <input type="submit" value="Importer" class="default">
+      &nbsp;
+      <a href="{{ import_csv_url|cut:'import-csv/' }}" class="button cancel-link"
+         style="background:#888;color:#fff;padding:6px 12px;border-radius:3px;text-decoration:none;">
+        Annuler
+      </a>
+    </p>
+  </form>
+</div>
+{% endblock %}

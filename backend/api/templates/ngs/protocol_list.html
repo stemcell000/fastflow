@@ -1,0 +1,21 @@
+{% extends "ngs/_list_base.html" %}
+{% block page_title %}Protocols{% endblock %}
+{% block list_title %}Protocols{% endblock %}
+{% block list_actions %}
+  <a href="{% url 'ngs:protocol-create' %}" class="btn btn-primary btn-sm">+ Add a protocol</a>
+{% endblock %}
+{% block table_head %}
+  <th>#</th><th>Primer pair</th><th>Sample</th><th>Comment</th><th>Created</th><th class="text-end">Actions</th>
+{% endblock %}
+{% block table_row %}
+  <td><a href="{% url 'ngs:protocol-detail' object.pk %}">#{{ object.pk }}</a></td>
+  <td>{{ object.primer_pair|default:"—" }}</td>
+  <td><a href="{% url 'ngs:sample-detail' object.sample_id %}">{{ object.sample }}</a></td>
+  <td>{{ object.commentary|default:"—"|truncatechars:60 }}</td>
+  <td>{{ object.created_at|date:"d/m/Y" }}</td>
+  <td class="text-end">
+    <a href="{% url 'ngs:protocol-update' object.pk %}" class="btn btn-outline-secondary btn-sm">Edit</a>
+    <a href="{% url 'ngs:protocol-delete' object.pk %}" class="btn btn-outline-danger btn-sm">Delete</a>
+  </td>
+{% endblock %}
+{% block empty_message %}No protocols recorded yet. <a href="{% url 'ngs:protocol-create' %}">Add the first one</a>.{% endblock %}

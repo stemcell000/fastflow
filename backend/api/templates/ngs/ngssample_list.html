@@ -1,0 +1,20 @@
+{% extends "ngs/_list_base.html" %}
+{% block page_title %}NGS Samples{% endblock %}
+{% block list_title %}NGS Samples{% endblock %}
+{% block list_actions %}
+  <a href="{% url 'ngs:ngssample-create' %}" class="btn btn-primary btn-sm">+ Add a NGS sample</a>
+{% endblock %}
+{% block table_head %}
+  <th>#</th><th>Index</th><th>Protocol</th><th>Final concentration</th><th class="text-end">Actions</th>
+{% endblock %}
+{% block table_row %}
+  <td><a href="{% url 'ngs:ngssample-detail' object.pk %}">#{{ object.pk }}</a></td>
+  <td>{{ object.index|default:"—" }}</td>
+  <td><a href="{% url 'ngs:protocol-detail' object.protocol_id %}">{{ object.protocol }}</a></td>
+  <td>{{ object.final_concentration|default:"—" }}</td>
+  <td class="text-end">
+    <a href="{% url 'ngs:ngssample-update' object.pk %}" class="btn btn-outline-secondary btn-sm">Edit</a>
+    <a href="{% url 'ngs:ngssample-delete' object.pk %}" class="btn btn-outline-danger btn-sm">Delete</a>
+  </td>
+{% endblock %}
+{% block empty_message %}No NGS samples recorded yet. <a href="{% url 'ngs:ngssample-create' %}">Add the first one</a>.{% endblock %}

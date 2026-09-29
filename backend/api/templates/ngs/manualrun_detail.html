@@ -1,0 +1,97 @@
+{% extends "ngs/_detail_base.html" %}
+{% block page_title %}Manual run #{{ object.pk }}{% endblock %}
+{% block detail_title %}Manual run #{{ object.pk }}{% endblock %}
+{% block detail_actions %}
+  <a href="{% url 'ngs:manualrun-delete' object.pk %}" class="btn btn-outline-danger btn-sm">Delete</a>
+{% endblock %}
+{% block info_header %}Manual run{% endblock %}
+{% block info_body %}
+  <dt class="col-sm-3">FASTQ</dt>
+  <dd class="col-sm-9"><a href="{% url 'ngs:fastq-detail' object.fastq_id %}">{{ object.fastq }}</a></dd>
+{% endblock %}
+{% block related_sections %}
+<div class="card mb-4">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    Scripts
+    <a href="{% url 'ngs:script-create' %}" class="btn btn-sm btn-primary">+ Add a script</a>
+  </div>
+  <div class="card-body p-0">
+    {% if scripts %}
+    <table class="table table-hover align-middle mb-0">
+      <thead><tr><th>#</th><th>File</th><th class="text-end">Actions</th></tr></thead>
+      <tbody>
+        {% for s in scripts %}
+        <tr>
+          <td>#{{ s.pk }}</td>
+          <td>{% if s.script_file %}<a href="{{ s.script_file.url }}" target="_blank" rel="noopener">Download</a>{% else %}—{% endif %}</td>
+          <td class="text-end">
+            <a href="{% url 'ngs:script-update' s.pk %}" class="btn btn-outline-secondary btn-sm">Edit</a>
+            <a href="{% url 'ngs:script-delete' s.pk %}" class="btn btn-outline-danger btn-sm">Delete</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="ff-empty mb-0">No scripts for this manual run.</p>
+    {% endif %}
+  </div>
+</div>
+
+<div class="card mb-4">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    Counts
+    <a href="{% url 'ngs:count-create' %}" class="btn btn-sm btn-primary">+ Add a count</a>
+  </div>
+  <div class="card-body p-0">
+    {% if counts %}
+    <table class="table table-hover align-middle mb-0">
+      <thead><tr><th>#</th><th>File</th><th class="text-end">Actions</th></tr></thead>
+      <tbody>
+        {% for c in counts %}
+        <tr>
+          <td>#{{ c.pk }}</td>
+          <td>{% if c.counts_file %}<a href="{{ c.counts_file.url }}" target="_blank" rel="noopener">Download</a>{% else %}—{% endif %}</td>
+          <td class="text-end">
+            <a href="{% url 'ngs:count-update' c.pk %}" class="btn btn-outline-secondary btn-sm">Edit</a>
+            <a href="{% url 'ngs:count-delete' c.pk %}" class="btn btn-outline-danger btn-sm">Delete</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="ff-empty mb-0">No counts for this manual run.</p>
+    {% endif %}
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    Analyses
+    <a href="{% url 'ngs:analysis-create' %}" class="btn btn-sm btn-primary">+ Add an analysis</a>
+  </div>
+  <div class="card-body p-0">
+    {% if analyses %}
+    <table class="table table-hover align-middle mb-0">
+      <thead><tr><th>#</th><th>Trimming</th><th>Logo plot</th><th class="text-end">Actions</th></tr></thead>
+      <tbody>
+        {% for a in analyses %}
+        <tr>
+          <td>#{{ a.pk }}</td>
+          <td>{% if a.trimming_table_file %}<a href="{{ a.trimming_table_file.url }}" target="_blank" rel="noopener">Download</a>{% else %}—{% endif %}</td>
+          <td>{% if a.logo_plot_file %}<a href="{{ a.logo_plot_file.url }}" target="_blank" rel="noopener">Download</a>{% else %}—{% endif %}</td>
+          <td class="text-end">
+            <a href="{% url 'ngs:analysis-update' a.pk %}" class="btn btn-outline-secondary btn-sm">Edit</a>
+            <a href="{% url 'ngs:analysis-delete' a.pk %}" class="btn btn-outline-danger btn-sm">Delete</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="ff-empty mb-0">No analyses for this manual run.</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

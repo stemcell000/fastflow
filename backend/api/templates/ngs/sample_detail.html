@@ -1,0 +1,63 @@
+{% extends "ngs/_detail_base.html" %}
+{% block page_title %}{{ object.name }}{% endblock %}
+{% block detail_title %}{{ object.name }}{% endblock %}
+{% block detail_actions %}
+  <a href="{% url 'ngs:sample-update' object.pk %}" class="btn btn-outline-secondary btn-sm">Edit</a>
+  <a href="{% url 'ngs:sample-delete' object.pk %}" class="btn btn-outline-danger btn-sm">Delete</a>
+{% endblock %}
+{% block info_header %}Sample{% endblock %}
+{% block info_body %}
+  <dt class="col-sm-3">Project</dt><dd class="col-sm-9">{{ object.project_name|default:"—" }}</dd>
+  <dt class="col-sm-3">Sample type</dt>
+  <dd class="col-sm-9">
+    {{ object.get_sample_type_display|default:"—" }}{% if object.sample_type == 'other' and object.sample_type_other %} — {{ object.sample_type_other }}{% endif %}
+  </dd>
+  <dt class="col-sm-3">Plasmid #</dt><dd class="col-sm-9">{{ object.plasmid_number|default:"—" }}</dd>
+  <dt class="col-sm-3">Production #</dt><dd class="col-sm-9">{{ object.production_number|default:"—" }}</dd>
+  <dt class="col-sm-3">Biological model</dt><dd class="col-sm-9">{{ object.get_biological_model_display|default:"—" }}</dd>
+  <dt class="col-sm-3">Organ</dt>
+  <dd class="col-sm-9">
+    {{ object.get_organ_display|default:"—" }}{% if object.organ == 'other' and object.organ_other %} — {{ object.organ_other }}{% endif %}
+  </dd>
+  <dt class="col-sm-3">Serotype</dt>
+  <dd class="col-sm-9">
+    {{ object.get_serotype_display|default:"—" }}{% if object.serotype == 'other' and object.serotype_other %} — {{ object.serotype_other }}{% endif %}
+  </dd>
+  <dt class="col-sm-3">Conditions</dt><dd class="col-sm-9">{{ object.get_condition_display|default:"—" }}</dd>
+  <dt class="col-sm-3">Injection type</dt>
+  <dd class="col-sm-9">
+    {{ object.get_injection_type_display|default:"—" }}{% if object.injection_type == 'other' and object.injection_type_other %} — {{ object.injection_type_other }}{% endif %}
+  </dd>
+  <dt class="col-sm-3">Description</dt><dd class="col-sm-9">{{ object.description|default:"—" }}</dd>
+  <dt class="col-sm-3">Created</dt><dd class="col-sm-9">{{ object.created_at|date:"d/m/Y H:i" }}</dd>
+{% endblock %}
+{% block related_sections %}
+<div class="card">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    Protocols
+    <a href="{% url 'ngs:protocol-create' %}" class="btn btn-sm btn-primary">+ Add a protocol</a>
+  </div>
+  <div class="card-body p-0">
+    {% if protocols %}
+    <table class="table table-hover align-middle mb-0">
+      <thead><tr><th>#</th><th>Primer pair</th><th>Comment</th><th class="text-end">Actions</th></tr></thead>
+      <tbody>
+        {% for p in protocols %}
+        <tr>
+          <td><a href="{% url 'ngs:protocol-detail' p.pk %}">#{{ p.pk }}</a></td>
+          <td>{{ p.primer_pair|default:"—" }}</td>
+          <td>{{ p.commentary|default:"—"|truncatechars:60 }}</td>
+          <td class="text-end">
+            <a href="{% url 'ngs:protocol-update' p.pk %}" class="btn btn-outline-secondary btn-sm">Edit</a>
+            <a href="{% url 'ngs:protocol-delete' p.pk %}" class="btn btn-outline-danger btn-sm">Delete</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="ff-empty mb-0">No protocols for this sample.</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

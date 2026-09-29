@@ -1,0 +1,70 @@
+{% extends "ngs/_detail_base.html" %}
+{% block page_title %}Batch #{{ object.pk }}{% endblock %}
+{% block detail_title %}Sequencing batch #{{ object.pk }}{% endblock %}
+{% block detail_actions %}
+  <a href="{% url 'ngs:sequencingbatch-update' object.pk %}" class="btn btn-outline-secondary btn-sm">Edit</a>
+  <a href="{% url 'ngs:sequencingbatch-delete' object.pk %}" class="btn btn-outline-danger btn-sm">Delete</a>
+{% endblock %}
+{% block info_header %}Sequencing batch{% endblock %}
+{% block info_body %}
+  <dt class="col-sm-3">NGS Sample</dt><dd class="col-sm-9"><a href="{% url 'ngs:ngssample-detail' object.ngs_sample_id %}">{{ object.ngs_sample }}</a></dd>
+{% endblock %}
+{% block related_sections %}
+<div class="card mb-4">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    Batch files
+    <a href="{% url 'ngs:batchfile-create' %}" class="btn btn-sm btn-primary">+ Add a file</a>
+  </div>
+  <div class="card-body p-0">
+    {% if batch_files %}
+    <table class="table table-hover align-middle mb-0">
+      <thead><tr><th>#</th><th>File</th><th>Calculation table</th><th class="text-end">Actions</th></tr></thead>
+      <tbody>
+        {% for bf in batch_files %}
+        <tr>
+          <td>#{{ bf.pk }}</td>
+          <td>{% if bf.file %}<a href="{{ bf.file.url }}" target="_blank" rel="noopener">Download</a>{% else %}—{% endif %}</td>
+          <td>{% if bf.table_de_calcul %}<a href="{{ bf.table_de_calcul.url }}" target="_blank" rel="noopener">Download</a>{% else %}—{% endif %}</td>
+          <td class="text-end">
+            <a href="{% url 'ngs:batchfile-update' bf.pk %}" class="btn btn-outline-secondary btn-sm">Edit</a>
+            <a href="{% url 'ngs:batchfile-delete' bf.pk %}" class="btn btn-outline-danger btn-sm">Delete</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="ff-empty mb-0">No files for this batch.</p>
+    {% endif %}
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    Sequencing products
+    <a href="{% url 'ngs:sequencingproduct-create' %}" class="btn btn-sm btn-primary">+ Add a product</a>
+  </div>
+  <div class="card-body p-0">
+    {% if sequencing_products %}
+    <table class="table table-hover align-middle mb-0">
+      <thead><tr><th>Date</th><th>Machine</th><th>Flowcell</th><th class="text-end">Actions</th></tr></thead>
+      <tbody>
+        {% for p in sequencing_products %}
+        <tr>
+          <td><a href="{% url 'ngs:sequencingproduct-detail' p.pk %}">{{ p.date|default:"—" }}</a></td>
+          <td>{{ p.sequencing_machine|default:"—" }}</td>
+          <td>{{ p.flowcell|default:"—" }}</td>
+          <td class="text-end">
+            <a href="{% url 'ngs:sequencingproduct-update' p.pk %}" class="btn btn-outline-secondary btn-sm">Edit</a>
+            <a href="{% url 'ngs:sequencingproduct-delete' p.pk %}" class="btn btn-outline-danger btn-sm">Delete</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="ff-empty mb-0">No sequencing products for this batch.</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

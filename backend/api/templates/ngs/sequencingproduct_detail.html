@@ -1,0 +1,50 @@
+{% extends "ngs/_detail_base.html" %}
+{% block page_title %}Product #{{ object.pk }}{% endblock %}
+{% block detail_title %}Sequencing product #{{ object.pk }}{% endblock %}
+{% block detail_actions %}
+  <a href="{% url 'ngs:sequencingproduct-update' object.pk %}" class="btn btn-outline-secondary btn-sm">Edit</a>
+  <a href="{% url 'ngs:sequencingproduct-delete' object.pk %}" class="btn btn-outline-danger btn-sm">Delete</a>
+{% endblock %}
+{% block info_header %}Sequencing product{% endblock %}
+{% block info_body %}
+  <dt class="col-sm-3">Batch</dt><dd class="col-sm-9"><a href="{% url 'ngs:sequencingbatch-detail' object.sequencing_batch_id %}">Batch #{{ object.sequencing_batch_id }}</a></dd>
+  <dt class="col-sm-3">Date</dt><dd class="col-sm-9">{{ object.date|default:"—" }}</dd>
+  <dt class="col-sm-3">Machine</dt><dd class="col-sm-9">{{ object.sequencing_machine|default:"—" }}</dd>
+  <dt class="col-sm-3">Flowcell</dt><dd class="col-sm-9">{{ object.flowcell|default:"—" }}</dd>
+  <dt class="col-sm-3">Read length</dt><dd class="col-sm-9">{{ object.read_length|default:"—" }}</dd>
+  <dt class="col-sm-3">Depth</dt><dd class="col-sm-9">{{ object.read_depth|default:"—" }}</dd>
+  <dt class="col-sm-3">% PhiX</dt><dd class="col-sm-9">{{ object.phix_proportion|default:"—" }}</dd>
+  <dt class="col-sm-3">Custom recipe</dt>
+  <dd class="col-sm-9">
+    {% if object.custom_recipe %}Yes ({{ object.custom_recipe_start|default:"—" }} → {{ object.custom_recipe_end|default:"—" }}){% else %}No{% endif %}
+  </dd>
+  <dt class="col-sm-3">Summary</dt>
+  <dd class="col-sm-9">{% if object.summary_file %}<a href="{{ object.summary_file.url }}" target="_blank" rel="noopener">Download</a>{% else %}—{% endif %}</dd>
+{% endblock %}
+{% block related_sections %}
+<div class="card">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    FASTQ
+    <a href="{% url 'ngs:fastq-create' %}" class="btn btn-sm btn-primary">+ Add a FASTQ</a>
+  </div>
+  <div class="card-body p-0">
+    {% if fastqs %}
+    <table class="table table-hover align-middle mb-0">
+      <thead><tr><th>#</th><th class="text-end">Actions</th></tr></thead>
+      <tbody>
+        {% for f in fastqs %}
+        <tr>
+          <td><a href="{% url 'ngs:fastq-detail' f.pk %}">FASTQ #{{ f.pk }}</a></td>
+          <td class="text-end">
+            <a href="{% url 'ngs:fastq-delete' f.pk %}" class="btn btn-outline-danger btn-sm">Delete</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="ff-empty mb-0">No FASTQ for this product.</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

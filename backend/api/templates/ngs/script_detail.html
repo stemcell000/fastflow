@@ -1,0 +1,42 @@
+{% extends "ngs/_detail_base.html" %}
+{% block page_title %}{{ object.name|default:"Script" }}{% endblock %}
+{% block detail_title %}{{ object.name|default:"Script" }}{% endblock %}
+{% block detail_actions %}
+  <a href="{% url 'ngs:script-update' object.pk %}" class="btn btn-outline-secondary btn-sm">Edit</a>
+  <a href="{% url 'ngs:script-delete' object.pk %}" class="btn btn-outline-danger btn-sm">Delete</a>
+{% endblock %}
+{% block info_header %}Script{% endblock %}
+{% block info_body %}
+  <dt class="col-sm-3">Language</dt><dd class="col-sm-9">{{ object.get_language_display }}</dd>
+  <dt class="col-sm-3">Version</dt><dd class="col-sm-9">{{ object.version|default:"—" }}</dd>
+  <dt class="col-sm-3">Comment</dt><dd class="col-sm-9">{{ object.comment|default:"—" }}</dd>
+  <dt class="col-sm-3">File</dt>
+  <dd class="col-sm-9">{% if object.script_file %}<a href="{{ object.script_file.url }}" target="_blank" rel="noopener">Download</a>{% else %}—{% endif %}</dd>
+  <dt class="col-sm-3">Manual run</dt>
+  <dd class="col-sm-9">
+    {% if object.manual_run %}<a href="{% url 'ngs:manualrun-detail' object.manual_run_id %}">Manual run #{{ object.manual_run_id }}</a>{% else %}<span class="text-muted">— (standalone script, not tied to a manual run)</span>{% endif %}
+  </dd>
+  <dt class="col-sm-3">Created</dt><dd class="col-sm-9">{{ object.created_at|date:"d/m/Y H:i" }}</dd>
+{% endblock %}
+{% block related_sections %}
+<div class="card">
+  <div class="card-header">Used in pipeline steps</div>
+  <div class="card-body p-0">
+    {% if pipeline_steps %}
+    <table class="table table-hover align-middle mb-0">
+      <thead><tr><th>Step</th><th>Pipeline template</th></tr></thead>
+      <tbody>
+        {% for step in pipeline_steps %}
+        <tr>
+          <td>{{ step.name }}</td>
+          <td><a href="{% url 'ngs:pipelinetemplate-detail' step.template_id %}">{{ step.template.name }}</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="ff-empty mb-0">This script isn't used by any pipeline step yet.</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

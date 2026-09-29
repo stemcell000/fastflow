@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="ff-page-header">
+  <h1>{% block detail_title %}{% endblock %}</h1>
+  <div class="d-flex gap-2">{% block detail_actions %}{% endblock %}</div>
+</div>
+
+<div class="card mb-4">
+  <div class="card-header">{% block info_header %}Details{% endblock %}</div>
+  <div class="card-body">
+    <dl class="row mb-0">
+      {% block info_body %}{% endblock %}
+    </dl>
+  </div>
+</div>
+
+{% block related_sections %}{% endblock %}
+{% endblock %}

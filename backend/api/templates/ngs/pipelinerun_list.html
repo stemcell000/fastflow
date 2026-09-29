@@ -1,0 +1,20 @@
+{% extends "ngs/_list_base.html" %}
+{% block page_title %}Pipeline runs{% endblock %}
+{% block list_title %}Pipeline runs{% endblock %}
+{% block table_head %}
+  <th>#</th><th>Template</th><th>FASTQ</th><th>Status</th><th>Launched</th><th>Finished</th>
+{% endblock %}
+{% block table_row %}
+  <td><a href="{% url 'ngs:pipelinerun-detail' object.pk %}">Run #{{ object.pk }}</a></td>
+  <td>{{ object.template.name }}</td>
+  <td><a href="{% url 'ngs:fastq-detail' object.fastq_id %}">FASTQ #{{ object.fastq_id }}</a></td>
+  <td>
+    {% if object.status == 'success' %}<span class="badge bg-success">{{ object.get_status_display }}</span>
+    {% elif object.status == 'failed' %}<span class="badge bg-danger">{{ object.get_status_display }}</span>
+    {% elif object.status == 'running' %}<span class="badge bg-warning text-dark">{{ object.get_status_display }}</span>
+    {% else %}<span class="badge bg-secondary">{{ object.get_status_display }}</span>{% endif %}
+  </td>
+  <td>{{ object.started_at|date:"d/m/Y H:i"|default:"—" }}</td>
+  <td>{{ object.finished_at|date:"d/m/Y H:i"|default:"—" }}</td>
+{% endblock %}
+{% block empty_message %}No pipeline runs yet.{% endblock %}

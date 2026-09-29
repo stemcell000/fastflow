@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block page_title %}Run #{{ run.pk }}{% endblock %}
+
+{% block extra_head %}
+{% if run.status == 'pending' or run.status == 'running' %}
+<meta http-equiv="refresh" content="5">
+{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="ff-page-header">
+  <h1>Pipeline "{{ run.template.name }}" — Run #{{ run.pk }}</h1>
+  <div>
+    {% if run.status == 'success' %}<span class="badge bg-success fs-6">{{ run.get_status_display }}</span>
+    {% elif run.status == 'failed' %}<span class="badge bg-danger fs-6">{{ run.get_status_display }}</span>
+    {% elif run.status == 'running' %}<span class="badge bg-warning text-dark fs-6">{{ run.get_status_display }}</span>
+    {% else %}<span class="badge bg-secondary fs-6">{{ run.get_status_display }}</span>{% endif %}
+  </div>
+</div>
+
+<div class="card mb-4">
+  <div class="card-header">Details</div>
+  <div class="card-body">
+    <dl class="row mb-0">
+      <dt class="col-sm-3">FASTQ</dt><dd class="col-sm-9"><a href="{% url 'ngs:fastq-detail' run.fastq_id %}">FASTQ #{{ run.fastq_id }}</a></dd>
+      <dt class="col-sm-3">Launched by</dt><dd class="col-sm-9">{{ run.launched_by|default:"—" }}</dd>
+      <dt class="col-sm-3">Created</dt><dd class="col-sm-9">{{ run.created_at|date:"d/m/Y H:i" }}</dd>
+      <dt class="col-sm-3">Started</dt><dd class="col-sm-9">{{ run.started_at|date:"d/m/Y H:i"|default:"—" }}</dd>
+      <dt class="col-sm-3">Finished</dt><dd class="col-sm-9">{{ run.finished_at|date:"d/m/Y H:i"|default:"—" }}</dd>
+    </dl>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">Steps ({{ step_runs|length }})</div>
+  <div class="card-body p-0">
+    <table class="table align-middle mb-0">
+      <thead>
+        <tr><th>Step</th><th>Depends on</th><th>Status</th><th>Exit code</th><th>Duration</th><th>Outputs</th><th>Log</th></tr>
+      </thead>
+      <tbody>
+        {% for sr in step_runs %}
+        <tr>
+          <td><strong>{{ sr.step.name }}</strong><br><span class="text-muted small">{{ sr.step.get_language_display }}</span></td>
+          <td>
+            {% for dep in sr.step.depends_on.all %}
+              <span class="badge ff-badge">{{ dep.name }}</span>
+            {% empty %}<span class="text-muted small">—</span>{% endfor %}
+          </td>
+          <td>
+            {% if sr.status == 'success' %}<span class="badge bg-success">{{ sr.get_status_display }}</span>
+            {% elif sr.status == 'failed' %}<span class="badge bg-danger">{{ sr.get_status_display }}</span>
+            {% elif sr.status == 'running' %}<span class="badge bg-warning text-dark">{{ sr.get_status_display }}</span>
+            {% elif sr.status == 'skipped' %}<span class="badge bg-secondary">{{ sr.get_status_display }}</span>
+            {% elif sr.status == 'queued' %}<span class="badge bg-info text-dark">{{ sr.get_status_display }}</span>
+            {% else %}<span class="badge bg-light text-dark border">{{ sr.get_status_display }}</span>{% endif %}
+          </td>
+          <td>{{ sr.exit_code|default:"—" }}</td>
+          <td>
+            {% if sr.started_at and sr.finished_at %}{{ sr.finished_at|timeuntil:sr.started_at }}{% else %}—{% endif %}
+          </td>
+          <td>
+            {% for a in sr.artifacts.all %}
+              {% if a.kind == 'output' %}<a href="{{ a.file.url }}" target="_blank" rel="noopener" class="d-block small">{{ a.label }}</a>{% endif %}
+            {% empty %}<span class="text-muted small">—</span>{% endfor %}
+          </td>
+          <td>
+            {% if sr.log %}
+            <details>
+              <summary class="small">View</summary>
+              <pre class="small bg-light p-2 mb-0" style="max-width:320px;max-height:200px;overflow:auto;">{{ sr.log }}</pre>
+            </details>
+            {% else %}<span class="text-muted small">—</span>{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

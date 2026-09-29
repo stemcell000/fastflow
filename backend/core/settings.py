@@ -60,7 +60,26 @@ INSTALLED_APPS = [
     'django_extensions',
     'django_celery_beat',
     'authentication',
+    'crispy_forms',
+    'crispy_bootstrap5',
 ]
+
+CRISPY_ALLOWED_TEMPLATE_PACKS = "bootstrap5"
+CRISPY_TEMPLATE_PACK = "bootstrap5"
+
+# Session authentication for the Django frontend (ngs/* pages)
+LOGIN_URL = 'portal_login'
+LOGIN_REDIRECT_URL = 'home'
+LOGOUT_REDIRECT_URL = 'portal_login'
+
+# django.contrib.messages tags errors as "error" by default, but Bootstrap
+# has no .alert-error class (only .alert-danger): without this mapping,
+# frontend error messages rendered with no styling at all, making them
+# invisible on screen (base.html builds the CSS class via
+# "alert-{{ message.tags }}").
+MESSAGE_TAGS = {
+    message_constants.ERROR: 'danger',
+}
 
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
@@ -98,7 +117,7 @@ AUTH_LDAP_USER_ATTR_MAP = {
 
 # Authentication Backends
 AUTHENTICATION_BACKENDS = [
-    'django_auth_ldap.backend.LDAPBackend',            # essayé en premier
+    'django_auth_ldap.backend.LDAPBackend',            # tried first
     'authentication.backends.RestrictedModelBackend', # fallback staff/superuser uniquement
 ]
 
@@ -210,6 +229,35 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
+# ========================================
+# FASTQ PIPELINE EXECUTION ENGINE
+# ========================================
+# ABSOLUTE host-side path matching MEDIA_ROOT. Needed because Celery workers
+# launch "sibling" containers via the host's Docker socket
+# (Docker-outside-of-Docker): the -v volumes must reference host paths, not
+# paths internal to the worker container.
+# Locally (without Docker), HOST_MEDIA_ROOT == MEDIA_ROOT.
+HOST_MEDIA_ROOT = env('HOST_MEDIA_ROOT', default=str(MEDIA_ROOT))
+
+PIPELINE_STEP_DEFAULT_TIMEOUT = env.int('PIPELINE_STEP_DEFAULT_TIMEOUT', default=3600)
+PIPELINE_STEP_MEM_LIMIT = env('PIPELINE_STEP_MEM_LIMIT', default='2g')
+
+# ========================================
+# CHUNKED FILE UPLOADS (FASTQ up to ~200 GB)
+# ========================================
+# A 64 MB chunk per request: allows fine-grained resume after a network
+# interruption without ever transferring the whole file in a single HTTP
+# request (which would be impractical at this scale — timeouts, memory, no
+# way to resume). See nginx.conf (client_max_body_size), which must stay
+# consistent with this value.
+UPLOAD_CHUNK_SIZE = env.int('UPLOAD_CHUNK_SIZE', default=64 * 1024 * 1024)
+DATA_UPLOAD_MAX_MEMORY_SIZE = max(UPLOAD_CHUNK_SIZE * 2, 100 * 1024 * 1024)
+
+# A chunked upload with no new chunk received within this delay is
+# considered abandoned (see tasks.cleanup_stale_chunked_uploads, scheduled
+# daily via django-celery-beat).
+STALE_UPLOAD_HOURS = env.int('STALE_UPLOAD_HOURS', default=48)
+
 
 # This is where your document files are located
 DOCUMENT_FILES_ROOT = os.path.join(BASE_DIR, 'document_files')
@@ -267,7 +315,7 @@ REST_FRAMEWORK = {
     'DEFAULT_FILTER_BACKENDS': ['django_filters.rest_framework.DjangoFilterBackend'],
     'DEFAULT_RENDERER_CLASSES': (
         'rest_framework.renderers.JSONRenderer',
-        'rest_framework.renderers.BrowsableAPIRenderer',  # 👈 doit être présent
+        'rest_framework.renderers.BrowsableAPIRenderer',  # 👈 must be present
     ),
 }
 

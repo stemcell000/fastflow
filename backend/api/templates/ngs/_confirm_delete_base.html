@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-12 col-lg-6">
+    <div class="card border-danger">
+      <div class="card-header bg-danger text-white">Confirm deletion</div>
+      <div class="card-body p-4">
+        <p>Are you sure you want to delete:</p>
+        <p class="fs-5 fw-bold">{{ object }}</p>
+        <p class="text-danger small">This action is permanent and will also delete related items.</p>
+        <form method="post">
+          {% csrf_token %}
+          <div class="d-flex gap-2 mt-3">
+            <button type="submit" class="btn btn-danger">Delete permanently</button>
+            <a href="{{ view.success_url }}" class="btn btn-outline-secondary">Cancel</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,48 @@
+{% extends "ngs/_detail_base.html" %}
+{% block page_title %}{{ object.name }}{% endblock %}
+{% block detail_title %}{{ object.name }}{% endblock %}
+{% block detail_actions %}
+  <a href="{% url 'ngs:pipelinetemplate-builder' object.pk %}" class="btn btn-primary btn-sm">✎ Visual editor</a>
+  <a href="/admin/api/pipelinetemplate/{{ object.pk }}/change/" class="btn btn-outline-secondary btn-sm">Edit (admin)</a>
+{% endblock %}
+{% block info_header %}Pipeline template{% endblock %}
+{% block info_body %}
+  <dt class="col-sm-3">Description</dt><dd class="col-sm-9">{{ object.description|default:"—" }}</dd>
+  <dt class="col-sm-3">Created</dt><dd class="col-sm-9">{{ object.created_at|date:"d/m/Y H:i" }}</dd>
+{% endblock %}
+{% block related_sections %}
+<div class="card">
+  <div class="card-header">DAG steps ({{ steps|length }})</div>
+  <div class="card-body p-0">
+    {% if steps %}
+    <table class="table table-hover align-middle mb-0">
+      <thead>
+        <tr><th>Step</th><th>Language</th><th>Docker image</th><th>Depends on</th><th>Timeout</th></tr>
+      </thead>
+      <tbody>
+        {% for step in steps %}
+        <tr>
+          <td><strong>{{ step.name }}</strong><br><code class="small text-muted">{{ step.command|truncatechars:70 }}</code></td>
+          <td>{{ step.get_language_display }}</td>
+          <td><code class="small">{{ step.docker_image }}</code></td>
+          <td>
+            {% for dep in step.depends_on.all %}
+              <span class="badge ff-badge">{{ dep.name }}</span>
+            {% empty %}
+              <span class="text-muted small">— (DAG root)</span>
+            {% endfor %}
+          </td>
+          <td>{{ step.timeout_seconds|default:"—" }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="ff-empty mb-0">
+      No steps yet. Add some from the <a href="{% url 'ngs:pipelinetemplate-builder' object.pk %}">visual editor</a>
+      or from <a href="/admin/api/pipelinetemplate/{{ object.pk }}/change/">the admin</a>.
+    </p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

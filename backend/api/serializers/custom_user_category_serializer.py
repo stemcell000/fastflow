@@ -2,7 +2,7 @@ from rest_framework import serializers
 from authentication.models import CustomUserCategory
 
 class CustomUserCategorySerializer(serializers.ModelSerializer):
-    """Serializer pour les catégories d'utilisateurs"""
+    """Serializer for user categories"""
     
     class Meta:
         model = CustomUserCategory

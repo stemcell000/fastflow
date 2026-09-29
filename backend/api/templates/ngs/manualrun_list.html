@@ -1,0 +1,24 @@
+{% extends "ngs/_list_base.html" %}
+{% block page_title %}Manual runs{% endblock %}
+{% block list_title %}Manual runs{% endblock %}
+{% block list_actions %}
+  <a href="{% url 'ngs:manualrun-create' %}" class="btn btn-primary btn-sm">+ Add a manual run</a>
+{% endblock %}
+{% block list_subtitle %}
+<p class="text-muted small mb-4">
+  Legacy, hand-maintained file tracking for a FASTQ (scripts, settings, counts and analysis files
+  attached by hand or via CSV import) — this is the model the CSV import guide originally called "Pipeline".
+  It does not execute anything: for automated, containerized execution, see <a href="{% url 'ngs:pipelinetemplate-list' %}">Pipeline</a> instead.
+</p>
+{% endblock %}
+{% block table_head %}
+  <th>#</th><th>FASTQ</th><th class="text-end">Actions</th>
+{% endblock %}
+{% block table_row %}
+  <td><a href="{% url 'ngs:manualrun-detail' object.pk %}">Manual run #{{ object.pk }}</a></td>
+  <td><a href="{% url 'ngs:fastq-detail' object.fastq_id %}">{{ object.fastq }}</a></td>
+  <td class="text-end">
+    <a href="{% url 'ngs:manualrun-delete' object.pk %}" class="btn btn-outline-danger btn-sm">Delete</a>
+  </td>
+{% endblock %}
+{% block empty_message %}No manual runs recorded yet. <a href="{% url 'ngs:manualrun-create' %}">Add the first one</a>.{% endblock %}

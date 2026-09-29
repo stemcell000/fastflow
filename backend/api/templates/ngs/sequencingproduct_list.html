@@ -1,0 +1,24 @@
+{% extends "ngs/_list_base.html" %}
+{% block page_title %}Sequencing products{% endblock %}
+{% block list_title %}Sequencing products{% endblock %}
+{% block list_actions %}
+  <a href="{% url 'ngs:sequencingproduct-create' %}" class="btn btn-primary btn-sm">+ Add a product</a>
+{% endblock %}
+{% block table_head %}
+  <th>Date</th><th>Machine</th><th>Flowcell</th><th>Read length</th><th>Depth</th><th>Custom recipe</th><th class="text-end">Actions</th>
+{% endblock %}
+{% block table_row %}
+  <td><a href="{% url 'ngs:sequencingproduct-detail' object.pk %}">{{ object.date|default:"—" }}</a></td>
+  <td>{{ object.sequencing_machine|default:"—" }}</td>
+  <td>{{ object.flowcell|default:"—" }}</td>
+  <td>{{ object.read_length|default:"—" }}</td>
+  <td>{{ object.read_depth|default:"—" }}</td>
+  <td>
+    {% if object.custom_recipe %}<span class="badge ff-badge">Yes</span>{% else %}<span class="text-muted">No</span>{% endif %}
+  </td>
+  <td class="text-end">
+    <a href="{% url 'ngs:sequencingproduct-update' object.pk %}" class="btn btn-outline-secondary btn-sm">Edit</a>
+    <a href="{% url 'ngs:sequencingproduct-delete' object.pk %}" class="btn btn-outline-danger btn-sm">Delete</a>
+  </td>
+{% endblock %}
+{% block empty_message %}No sequencing products recorded yet. <a href="{% url 'ngs:sequencingproduct-create' %}">Add the first one</a>.{% endblock %}

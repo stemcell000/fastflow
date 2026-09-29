@@ -1,0 +1,223 @@
+/*
+ * FastFlow — visual theme for the frontend application.
+ * Tokens extracted from the OPHSTAT style guide:
+ *   - typography: Fira Sans Condensed (headings, uppercase, letter-spacing) / Arial (body text)
+ *   - colors: deep black + the cyan/teal palette from the guide's color blocks
+ *   - spirit: flat, minimal, high-contrast
+ */
+
+:root {
+  --ff-ink: #1a1a1a;
+  --ff-ink-soft: #585858;
+  --ff-muted: #b3b3b3;
+  --ff-border: #e2e2e2;
+  --ff-surface: #ffffff;
+  --ff-canvas: #f5f6f7;
+
+  --ff-primary: #0bafa7;
+  --ff-primary-dark: #086f6a;
+  --ff-accent: #29d8ef;
+  --ff-mint: #26edcc;
+  --ff-deep: #306d73;
+
+  --bs-primary: var(--ff-primary);
+  --bs-primary-rgb: 11, 175, 167;
+  --bs-link-color: var(--ff-primary-dark);
+  --bs-link-hover-color: var(--ff-primary);
+  --bs-body-font-family: Arial, 'Helvetica Neue', Helvetica, sans-serif;
+  --bs-body-color: var(--ff-ink);
+  --bs-body-bg: var(--ff-canvas);
+}
+
+body {
+  background-color: var(--ff-canvas);
+}
+
+h1, h2, h3, h4, h5, h6,
+.ff-heading {
+  font-family: 'Fira Sans Condensed', sans-serif;
+  font-weight: 500;
+  letter-spacing: .5px;
+  text-transform: uppercase;
+  color: var(--ff-ink);
+}
+
+.ff-navbar {
+  background-color: var(--ff-ink);
+}
+
+.ff-navbar .navbar-brand {
+  font-family: 'Fira Sans Condensed', sans-serif;
+  font-weight: 600;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: #fff;
+}
+
+.ff-navbar .navbar-brand small {
+  display: block;
+  font-size: .6rem;
+  letter-spacing: 2px;
+  font-weight: 300;
+  color: var(--ff-accent);
+}
+
+.ff-navbar .nav-link {
+  font-family: 'Fira Sans Condensed', sans-serif;
+  letter-spacing: .5px;
+  text-transform: uppercase;
+  font-size: .85rem;
+  color: #dadada;
+}
+
+.ff-navbar .nav-link:hover,
+.ff-navbar .nav-link.active {
+  color: var(--ff-accent);
+}
+
+.ff-page-header {
+  border-bottom: 3px solid var(--ff-ink);
+  padding-bottom: .5rem;
+  margin-bottom: 1.5rem;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: .5rem;
+}
+
+.ff-page-header h1 {
+  font-size: 1.5rem;
+  margin: 0;
+}
+
+.ff-breadcrumb {
+  font-family: 'Fira Sans Condensed', sans-serif;
+  font-size: .8rem;
+  letter-spacing: .5px;
+  text-transform: uppercase;
+  color: var(--ff-ink-soft);
+}
+
+.ff-breadcrumb a {
+  color: var(--ff-ink-soft);
+  text-decoration: none;
+}
+
+.ff-breadcrumb a:hover {
+  color: var(--ff-primary);
+}
+
+.card {
+  border: none;
+  border-radius: 2px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, .06);
+}
+
+.card-header {
+  background-color: var(--ff-ink);
+  color: #fff;
+  font-family: 'Fira Sans Condensed', sans-serif;
+  letter-spacing: .5px;
+  text-transform: uppercase;
+  font-weight: 500;
+  border-radius: 0;
+}
+
+.btn {
+  border-radius: 2px;
+  font-family: 'Fira Sans Condensed', sans-serif;
+  letter-spacing: .5px;
+  text-transform: uppercase;
+  font-weight: 500;
+  font-size: .85rem;
+}
+
+.btn-primary {
+  background-color: var(--ff-primary);
+  border-color: var(--ff-primary);
+}
+
+.btn-primary:hover,
+.btn-primary:focus {
+  background-color: var(--ff-primary-dark);
+  border-color: var(--ff-primary-dark);
+}
+
+.btn-dark {
+  background-color: var(--ff-ink);
+  border-color: var(--ff-ink);
+}
+
+.table thead th {
+  font-family: 'Fira Sans Condensed', sans-serif;
+  letter-spacing: .5px;
+  text-transform: uppercase;
+  font-size: .78rem;
+  font-weight: 600;
+  color: var(--ff-ink-soft);
+  border-bottom-width: 2px;
+  border-color: var(--ff-ink);
+  white-space: nowrap;
+}
+
+.table-hover tbody tr:hover {
+  background-color: rgba(11, 175, 167, .06);
+}
+
+.ff-stat-card {
+  background-color: var(--ff-surface);
+  border-left: 6px solid var(--ff-primary);
+  border-radius: 2px;
+  padding: 1.1rem 1.25rem;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, .06);
+  text-decoration: none;
+  display: block;
+  transition: box-shadow .15s ease, transform .15s ease;
+}
+
+.ff-stat-card:hover {
+  box-shadow: 0 4px 14px rgba(0, 0, 0, .12);
+  transform: translateY(-2px);
+}
+
+.ff-stat-card .ff-stat-count {
+  font-family: 'Fira Sans Condensed', sans-serif;
+  font-size: 2.2rem;
+  font-weight: 600;
+  color: var(--ff-ink);
+  line-height: 1;
+}
+
+.ff-stat-card .ff-stat-label {
+  font-family: 'Fira Sans Condensed', sans-serif;
+  letter-spacing: .5px;
+  text-transform: uppercase;
+  font-size: .8rem;
+  color: var(--ff-ink-soft);
+}
+
+.ff-empty {
+  text-align: center;
+  padding: 3rem 1rem;
+  color: var(--ff-ink-soft);
+}
+
+.ff-footer {
+  background-color: var(--ff-ink);
+  color: var(--ff-muted);
+  font-size: .8rem;
+  padding: 1.25rem 0;
+  margin-top: 3rem;
+}
+
+.ff-footer a {
+  color: var(--ff-accent);
+}
+
+.badge.ff-badge {
+  background-color: var(--ff-deep);
+  font-weight: 400;
+  letter-spacing: .5px;
+  text-transform: uppercase;
+}

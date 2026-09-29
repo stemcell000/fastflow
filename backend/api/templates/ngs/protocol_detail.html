@@ -1,0 +1,48 @@
+{% extends "ngs/_detail_base.html" %}
+{% block page_title %}Protocol #{{ object.pk }}{% endblock %}
+{% block detail_title %}Protocol #{{ object.pk }}{% endblock %}
+{% block detail_actions %}
+  <a href="{% url 'ngs:protocol-update' object.pk %}" class="btn btn-outline-secondary btn-sm">Edit</a>
+  <a href="{% url 'ngs:protocol-delete' object.pk %}" class="btn btn-outline-danger btn-sm">Delete</a>
+{% endblock %}
+{% block info_header %}Protocol{% endblock %}
+{% block info_body %}
+  <dt class="col-sm-3">Sample</dt><dd class="col-sm-9"><a href="{% url 'ngs:sample-detail' object.sample_id %}">{{ object.sample }}</a></dd>
+  <dt class="col-sm-3">Primer pair</dt><dd class="col-sm-9">{{ object.primer_pair|default:"—" }}</dd>
+  <dt class="col-sm-3">Comment</dt><dd class="col-sm-9">{{ object.commentary|default:"—" }}</dd>
+  <dt class="col-sm-3">Description file</dt>
+  <dd class="col-sm-9">
+    {% if object.protocol_description_file %}<a href="{{ object.protocol_description_file.url }}" target="_blank" rel="noopener">Download</a>{% else %}—{% endif %}
+  </dd>
+  <dt class="col-sm-3">Created</dt><dd class="col-sm-9">{{ object.created_at|date:"d/m/Y H:i" }}</dd>
+{% endblock %}
+{% block related_sections %}
+<div class="card">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    NGS Samples
+    <a href="{% url 'ngs:ngssample-create' %}" class="btn btn-sm btn-primary">+ Add a NGS sample</a>
+  </div>
+  <div class="card-body p-0">
+    {% if ngs_samples %}
+    <table class="table table-hover align-middle mb-0">
+      <thead><tr><th>#</th><th>Index</th><th>Final concentration</th><th class="text-end">Actions</th></tr></thead>
+      <tbody>
+        {% for n in ngs_samples %}
+        <tr>
+          <td><a href="{% url 'ngs:ngssample-detail' n.pk %}">#{{ n.pk }}</a></td>
+          <td>{{ n.index|default:"—" }}</td>
+          <td>{{ n.final_concentration|default:"—" }}</td>
+          <td class="text-end">
+            <a href="{% url 'ngs:ngssample-update' n.pk %}" class="btn btn-outline-secondary btn-sm">Edit</a>
+            <a href="{% url 'ngs:ngssample-delete' n.pk %}" class="btn btn-outline-danger btn-sm">Delete</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="ff-empty mb-0">No NGS samples for this protocol.</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,346 @@
+{% extends "base.html" %}
+{% block page_title %}Pipeline editor{% endblock %}
+
+{% block extra_head %}
+<link href="https://cdn.jsdelivr.net/npm/drawflow@0.0.59/dist/drawflow.min.css" rel="stylesheet">
+<style>
+  #drawflow {
+    width: 100%;
+    height: 68vh;
+    background-color: #f5f6f7;
+    background-image: radial-gradient(circle, #d8dadd 1px, transparent 1px);
+    background-size: 18px 18px;
+    border: 1px solid var(--ff-border);
+  }
+  .step-node { width: 260px; }
+  .step-node .ff-node-title {
+    width: 100%; border: none; border-bottom: 2px solid var(--ff-ink);
+    font-family: 'Fira Sans Condensed', sans-serif; font-weight: 600;
+    letter-spacing: .5px; text-transform: uppercase; font-size: .9rem;
+    padding: 2px 0; margin-bottom: 6px; background: transparent;
+  }
+  .step-node .ff-node-title:focus { outline: none; border-color: var(--ff-primary); }
+  .step-node label { display: block; font-size: .68rem; text-transform: uppercase; letter-spacing: .5px; color: var(--ff-ink-soft); margin-top: 6px; }
+  .step-node select, .step-node input[type=text], .step-node input[type=number], .step-node textarea {
+    width: 100%; font-size: .8rem; border: 1px solid var(--ff-border); border-radius: 2px; padding: 3px 6px;
+  }
+  .step-node textarea { font-family: monospace; resize: vertical; }
+  .step-node .ff-script-row { display: flex; gap: 4px; align-items: center; }
+  .step-node .ff-script-row select { flex: 1; }
+  .step-add-script-btn {
+    border: 1px solid var(--ff-border); background: #fff; border-radius: 2px;
+    font-size: .75rem; padding: 2px 6px; cursor: pointer; white-space: nowrap;
+  }
+  .step-delete-btn {
+    float: right; border: none; background: transparent; color: #c00; font-weight: bold;
+    cursor: pointer; line-height: 1; font-size: 1rem;
+  }
+  .drawflow-node { background: #fff; border-radius: 2px; box-shadow: 0 1px 4px rgba(0,0,0,.12); padding: 10px 12px; }
+  .drawflow-node.selected { box-shadow: 0 0 0 2px var(--ff-primary); }
+  .drawflow .connection .main-path { stroke: var(--ff-primary); stroke-width: 3px; }
+  .drawflow .connection .main-path:hover { stroke: var(--ff-primary-dark); cursor: pointer; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="ff-page-header">
+  <h1>{{ template.name|default:"New pipeline template" }}</h1>
+  <div class="d-flex gap-2">
+    {% if template %}
+      <a href="/admin/api/pipelinetemplate/{{ template.pk }}/change/" class="btn btn-outline-secondary btn-sm">Edit (admin)</a>
+      <a href="{% url 'ngs:pipelinetemplate-detail' template.pk %}" class="btn btn-outline-secondary btn-sm">Cancel</a>
+    {% else %}
+      <a href="{% url 'ngs:pipelinetemplate-list' %}" class="btn btn-outline-secondary btn-sm">Cancel</a>
+    {% endif %}
+  </div>
+</div>
+
+{% csrf_token %}
+
+<div class="row g-2 mb-3">
+  <div class="col-12 col-md-4">
+    <label class="form-label small">Template name</label>
+    <input type="text" id="ff-template-name" class="form-control" value="{{ template.name|default:'' }}" placeholder="E.g.: QC + alignment + counting">
+  </div>
+  <div class="col-12 col-md-6">
+    <label class="form-label small">Description</label>
+    <input type="text" id="ff-template-description" class="form-control" value="{{ template.description|default:'' }}">
+  </div>
+  <div class="col-12 col-md-2 d-flex align-items-end gap-2">
+    <button type="button" id="ff-add-step" class="btn btn-outline-dark btn-sm w-100">+ Step</button>
+  </div>
+</div>
+
+<div id="ff-builder-alert"></div>
+
+<div id="drawflow"></div>
+
+<div class="d-flex justify-content-between align-items-center mt-3">
+  <p class="text-muted small mb-0">
+    Drag from a step's output to another step's input to create a dependency
+    (the target step waits for the source step to succeed). Click a connection to delete it.
+  </p>
+  <button type="button" id="ff-save" class="btn btn-primary">Save pipeline</button>
+</div>
+
+<div class="modal fade" id="ff-script-modal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">New script</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div id="ff-script-modal-alert"></div>
+        <div class="mb-3">
+          <label class="form-label small">Name</label>
+          <input type="text" id="ff-script-name" class="form-control" required>
+        </div>
+        <div class="row g-2">
+          <div class="col-6">
+            <label class="form-label small">Language</label>
+            <select id="ff-script-language" class="form-select"></select>
+          </div>
+          <div class="col-6">
+            <label class="form-label small">Version</label>
+            <input type="text" id="ff-script-version" class="form-control" placeholder="e.g.: 1.2.0">
+          </div>
+        </div>
+        <div class="mb-3 mt-2">
+          <label class="form-label small">Comment</label>
+          <textarea id="ff-script-comment" class="form-control" rows="2"></textarea>
+        </div>
+        <div class="mb-3">
+          <label class="form-label small">Script file</label>
+          <input type="file" id="ff-script-file" class="form-control">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" id="ff-script-modal-save" class="btn btn-primary">Create</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="https://cdn.jsdelivr.net/npm/drawflow@0.0.59/dist/drawflow.min.js"></script>
+<script>
+(function () {
+  const LANGUAGE_CHOICES = {{ language_choices_json|safe }};
+  const INITIAL_NODES = {{ initial_nodes_json|safe }};
+  let SCRIPTS = {{ scripts_json|safe }};
+  const SAVE_URL = "{% if template %}{% url 'ngs:pipelinetemplate-builder-save' template.pk %}{% else %}{% url 'ngs:pipelinetemplate-builder-save-new' %}{% endif %}";
+  const SCRIPT_CREATE_URL = "{% url 'ngs:script-quick-create' %}";
+
+  function escapeHtml(str) {
+    return String(str == null ? '' : str)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  // Fill the language <select> in the quick script-creation modal.
+  const scriptLangSelect = document.getElementById('ff-script-language');
+  scriptLangSelect.innerHTML = LANGUAGE_CHOICES.map(function (c) {
+    return '<option value="' + c[0] + '">' + c[1] + '</option>';
+  }).join('');
+
+  function scriptOptionsHtml(language, selectedId) {
+    const matching = SCRIPTS.filter(function (s) { return s.language === language; });
+    let html = '<option value="">— None —</option>';
+    matching.forEach(function (s) {
+      const sel = String(s.id) === String(selectedId) ? 'selected' : '';
+      html += '<option value="' + s.id + '" ' + sel + '>' + escapeHtml(s.label) + '</option>';
+    });
+    return html;
+  }
+
+  function nodeHtml(data) {
+    const options = LANGUAGE_CHOICES.map(function (choice) {
+      const selected = choice[0] === data.language ? 'selected' : '';
+      return '<option value="' + choice[0] + '" ' + selected + '>' + choice[1] + '</option>';
+    }).join('');
+    return (
+      '<button type="button" class="step-delete-btn" title="Delete step">&times;</button>' +
+      '<input type="text" df-name class="ff-node-title" placeholder="Step name" value="' + escapeHtml(data.name) + '">' +
+      '<label>Language</label><select df-language class="ff-language-select">' + options + '</select>' +
+      '<label>Script</label>' +
+      '<div class="ff-script-row">' +
+      '<select df-script_id class="ff-script-select">' + scriptOptionsHtml(data.language, data.script_id) + '</select>' +
+      '<button type="button" class="step-add-script-btn" title="New script">+</button>' +
+      '</div>' +
+      '<label>Docker image</label><input type="text" df-docker_image value="' + escapeHtml(data.docker_image) + '">' +
+      '<label>Command (cwd=/work, inputs in in/, expected outputs in out/)</label>' +
+      '<textarea df-command rows="3">' + escapeHtml(data.command) + '</textarea>' +
+      '<label>Timeout (seconds, optional)</label>' +
+      '<input type="number" df-timeout_seconds value="' + (data.timeout_seconds || '') + '">'
+    );
+  }
+
+  const editor = new Drawflow(document.getElementById('drawflow'));
+  editor.reroute = true;
+  editor.start();
+
+  const dbIdToDrawflowId = {};
+  INITIAL_NODES.forEach(function (step, index) {
+    const data = {
+      db_id: step.db_id, name: step.name, language: step.language,
+      docker_image: step.docker_image, script_id: step.script_id,
+      command: step.command, timeout_seconds: step.timeout_seconds,
+    };
+    const id = editor.addNode('step', 1, 1, step.pos_x, step.pos_y, 'step-node', data, nodeHtml(data));
+    dbIdToDrawflowId[step.db_id] = id;
+  });
+  INITIAL_NODES.forEach(function (step) {
+    (step.depends_on || []).forEach(function (depDbId) {
+      if (dbIdToDrawflowId[depDbId] !== undefined && dbIdToDrawflowId[step.db_id] !== undefined) {
+        editor.addConnection(dbIdToDrawflowId[depDbId], dbIdToDrawflowId[step.db_id], 'output_1', 'input_1');
+      }
+    });
+  });
+
+  let addCount = 0;
+  document.getElementById('ff-add-step').addEventListener('click', function () {
+    addCount += 1;
+    const data = { db_id: null, name: '', language: 'python', docker_image: 'python:3.11-slim', script_id: null, command: '', timeout_seconds: null };
+    const x = 60 + (addCount % 4) * 260;
+    const y = 60 + Math.floor(addCount / 4) * 240 + 260;
+    editor.addNode('step', 1, 1, x, y, 'step-node', data, nodeHtml(data));
+  });
+
+  // Refresh the script <select> options when the step's language changes,
+  // filtering on registry scripts matching that language.
+  document.getElementById('drawflow').addEventListener('change', function (e) {
+    if (e.target.classList.contains('ff-language-select')) {
+      const nodeEl = e.target.closest('.drawflow-node');
+      const scriptSelect = nodeEl.querySelector('.ff-script-select');
+      scriptSelect.innerHTML = scriptOptionsHtml(e.target.value, null);
+      scriptSelect.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+  });
+
+  let scriptModalTargetNode = null;
+  const scriptModalEl = document.getElementById('ff-script-modal');
+  const scriptModal = new bootstrap.Modal(scriptModalEl);
+
+  document.getElementById('drawflow').addEventListener('click', function (e) {
+    if (e.target.classList.contains('step-add-script-btn')) {
+      scriptModalTargetNode = e.target.closest('.drawflow-node');
+      const currentLanguage = scriptModalTargetNode.querySelector('.ff-language-select').value;
+      document.getElementById('ff-script-name').value = '';
+      document.getElementById('ff-script-language').value = currentLanguage;
+      document.getElementById('ff-script-version').value = '';
+      document.getElementById('ff-script-comment').value = '';
+      document.getElementById('ff-script-file').value = '';
+      document.getElementById('ff-script-modal-alert').innerHTML = '';
+      scriptModal.show();
+    }
+    if (e.target.classList.contains('step-delete-btn')) {
+      const nodeEl = e.target.closest('.drawflow-node');
+      if (nodeEl) {
+        editor.removeNodeId(nodeEl.id);
+      }
+    }
+  });
+
+  function getCsrfToken() {
+    return document.querySelector('input[name=csrfmiddlewaretoken]').value;
+  }
+
+  function showAlert(message, kind) {
+    document.getElementById('ff-builder-alert').innerHTML =
+      '<div class="alert alert-' + kind + '">' + escapeHtml(message) + '</div>';
+  }
+
+  document.getElementById('ff-script-modal-save').addEventListener('click', function () {
+    const name = document.getElementById('ff-script-name').value.trim();
+    const modalAlert = document.getElementById('ff-script-modal-alert');
+    if (!name) {
+      modalAlert.innerHTML = '<div class="alert alert-danger">The script name is required.</div>';
+      return;
+    }
+    const formData = new FormData();
+    formData.append('name', name);
+    formData.append('language', document.getElementById('ff-script-language').value);
+    formData.append('version', document.getElementById('ff-script-version').value);
+    formData.append('comment', document.getElementById('ff-script-comment').value);
+    const fileInput = document.getElementById('ff-script-file');
+    if (fileInput.files[0]) formData.append('script_file', fileInput.files[0]);
+
+    fetch(SCRIPT_CREATE_URL, {
+      method: 'POST',
+      headers: { 'X-CSRFToken': getCsrfToken() },
+      body: formData,
+    })
+      .then(function (resp) { return resp.json(); })
+      .then(function (data) {
+        if (!data.ok) {
+          modalAlert.innerHTML = '<div class="alert alert-danger">' + escapeHtml(data.error || 'Error') + '</div>';
+          return;
+        }
+        SCRIPTS.push({ id: data.id, label: data.label, language: data.language });
+        if (scriptModalTargetNode) {
+          const languageSelect = scriptModalTargetNode.querySelector('.ff-language-select');
+          languageSelect.value = data.language;
+          const scriptSelect = scriptModalTargetNode.querySelector('.ff-script-select');
+          scriptSelect.innerHTML = scriptOptionsHtml(data.language, data.id);
+          languageSelect.dispatchEvent(new Event('input', { bubbles: true }));
+          scriptSelect.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+        scriptModal.hide();
+      })
+      .catch(function () {
+        modalAlert.innerHTML = '<div class="alert alert-danger">Network error.</div>';
+      });
+  });
+
+  document.getElementById('ff-save').addEventListener('click', function () {
+    const exported = editor.export().drawflow.Home.data;
+    const nodes = [];
+    const edges = [];
+    Object.keys(exported).forEach(function (nodeId) {
+      const n = exported[nodeId];
+      nodes.push({
+        client_id: nodeId,
+        db_id: n.data.db_id || null,
+        name: n.data.name,
+        language: n.data.language,
+        docker_image: n.data.docker_image,
+        script_id: n.data.script_id || null,
+        command: n.data.command,
+        timeout_seconds: n.data.timeout_seconds ? parseInt(n.data.timeout_seconds, 10) : null,
+      });
+      Object.keys(n.outputs).forEach(function (outputKey) {
+        n.outputs[outputKey].connections.forEach(function (conn) {
+          edges.push({ from: nodeId, to: conn.node });
+        });
+      });
+    });
+
+    const payload = {
+      name: document.getElementById('ff-template-name').value,
+      description: document.getElementById('ff-template-description').value,
+      nodes: nodes,
+      edges: edges,
+    };
+
+    fetch(SAVE_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken() },
+      body: JSON.stringify(payload),
+    })
+      .then(function (resp) { return resp.json().then(function (data) { return { status: resp.status, data: data }; }); })
+      .then(function (result) {
+        if (result.data.ok) {
+          window.location.href = result.data.redirect;
+        } else {
+          showAlert(result.data.error || "Error while saving.", 'danger');
+        }
+      })
+      .catch(function () {
+        showAlert("Network error while saving.", 'danger');
+      });
+  });
+})();
+</script>
+{% endblock %}

@@ -1,13 +1,13 @@
 import os
 from celery import Celery
 
-# Indique à Celery quel settings Django utiliser
+# Tells Celery which Django settings module to use
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings')
 
 app = Celery('core')
 
-# Charge la configuration Celery depuis Django settings (clés préfixées CELERY_)
+# Loads Celery configuration from Django settings (CELERY_-prefixed keys)
 app.config_from_object('django.conf:settings', namespace='CELERY')
 
-# Découverte automatique des tâches dans les fichiers tasks.py de chaque app
+# Auto-discovers tasks in each app's tasks.py file
 app.autodiscover_tasks()

@@ -14,26 +14,36 @@ TEMPLATES = {
     "01_samples.csv": {
         "headers": [
             "name",
-            "project_name",
-            "sample_type",       # choices: cell_line, primary_culture, tissue, organoid, other
-            "plasmid_number",    # integer, optionnel
-            "production_number", # integer, optionnel
-            "biological_model",  # optionnel
-            "organ",             # optionnel
-            "serotype",          # optionnel
-            "condition",         # optionnel
-            "description",       # optionnel
+            "project_name",         # optional
+            "sample_type",          # choices: cell_line, primary_culture, tissue, organoid, aav, plasmid, other
+            "sample_type_other",    # free text, used only when sample_type = other
+            "plasmid_number",       # integer, optional, used only when sample_type = plasmid
+            "production_number",    # integer, optional, used only when sample_type = aav
+            "biological_model",     # choices: human, macaca_mulatta, chlorocebus, mouse, pig, other
+            "organ",                # choices: retina, brain_cortex, brain_lgn, muscle, cochlea, other
+            "organ_other",          # free text, used only when organ = other
+            "serotype",             # choices: aav2, aav5, aav9, other
+            "serotype_other",       # free text, used only when serotype = other
+            "condition",            # choices: ex_vivo, in_vivo, in_vitro
+            "injection_type",       # choices: sub_retinal, intra_vitreal, other
+            "injection_type_other", # free text, used only when injection_type = other
+            "description",          # optional
         ],
         "example": [
             "Sample_A",
             "Project_Vision_2024",
-            "cell_line",
-            "42",
+            "aav",
+            "",
+            "",
             "7",
-            "Mouse retina",
-            "Retina",
-            "AAV9",
-            "Treated",
+            "mouse",
+            "retina",
+            "",
+            "aav9",
+            "",
+            "in_vivo",
+            "sub_retinal",
+            "",
             "Primary retinal cells treated with AAV9",
         ],
     },
@@ -123,7 +133,7 @@ TEMPLATES = {
             "1",
         ],
     },
-    "09_pipelines.csv": {
+    "09_manual_runs.csv": {
         "headers": [
             "fastq_id",                # FK → fastq.id
         ],
@@ -133,7 +143,7 @@ TEMPLATES = {
     },
     "10_scripts.csv": {
         "headers": [
-            "pipeline_id",             # FK → pipelines.id
+            "manual_run_id",           # FK → manual_runs.id
         ],
         "example": [
             "1",
@@ -149,7 +159,7 @@ TEMPLATES = {
     },
     "12_counts.csv": {
         "headers": [
-            "pipeline_id",             # FK → pipelines.id
+            "manual_run_id",           # FK → manual_runs.id
         ],
         "example": [
             "1",
@@ -157,7 +167,7 @@ TEMPLATES = {
     },
     "13_analysis.csv": {
         "headers": [
-            "pipeline_id",             # FK → pipelines.id
+            "manual_run_id",           # FK → manual_runs.id
         ],
         "example": [
             "1",

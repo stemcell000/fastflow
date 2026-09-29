@@ -13,26 +13,26 @@
 
 <div style="background:#fff;padding:24px;border:1px solid #ddd;border-radius:4px;max-width:640px;">
   <div style="background:#e8f4f8;border-left:4px solid #417690;padding:12px 16px;margin-bottom:20px;">
-    <strong>Ordre d'import obligatoire</strong><br>
+    <strong>Required import order</strong><br>
     <small style="color:#555;">
       samples → protocols → ngs_samples → sequencing_batches →
       sequencing_batch_files → sequencing_products → fastq →
-      fastq_files → pipelines → scripts → settings → counts → analysis
+      fastq_files → manual_runs → scripts → settings → counts → analysis
     </small>
   </div>
   <form method="post" enctype="multipart/form-data">
     {% csrf_token %}
     <p>
-      <label for="csv_file"><strong>Fichier CSV :</strong></label><br>
+      <label for="csv_file"><strong>CSV file:</strong></label><br>
       <input type="file" name="csv_file" id="csv_file" accept=".csv" style="margin-top:8px;">
     </p>
     <p style="color:#666;font-size:0.85em;">
-      Encodage attendu : UTF-8. Les colonnes FileField sont ignorées à l'import.
+      Expected encoding: UTF-8. FileField columns are ignored on import.
     </p>
     <p style="margin-top:16px;">
-      <input type="submit" value="Importer" class="default">
+      <input type="submit" value="Import" class="default">
       &nbsp;
-      <a href="{{ changelist_url }}">Annuler</a>
+      <a href="{{ changelist_url }}">Cancel</a>
     </p>
   </form>
 </div>

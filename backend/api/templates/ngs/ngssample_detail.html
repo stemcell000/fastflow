@@ -1,0 +1,45 @@
+{% extends "ngs/_detail_base.html" %}
+{% block page_title %}NGS Sample #{{ object.pk }}{% endblock %}
+{% block detail_title %}NGS Sample #{{ object.pk }}{% endblock %}
+{% block detail_actions %}
+  <a href="{% url 'ngs:ngssample-update' object.pk %}" class="btn btn-outline-secondary btn-sm">Edit</a>
+  <a href="{% url 'ngs:ngssample-delete' object.pk %}" class="btn btn-outline-danger btn-sm">Delete</a>
+{% endblock %}
+{% block info_header %}NGS Sample{% endblock %}
+{% block info_body %}
+  <dt class="col-sm-3">Protocol</dt><dd class="col-sm-9"><a href="{% url 'ngs:protocol-detail' object.protocol_id %}">{{ object.protocol }}</a></dd>
+  <dt class="col-sm-3">Index</dt><dd class="col-sm-9">{{ object.index|default:"—" }}</dd>
+  <dt class="col-sm-3">Final concentration</dt><dd class="col-sm-9">{{ object.final_concentration|default:"—" }}</dd>
+  <dt class="col-sm-3">Bioanalyzer</dt>
+  <dd class="col-sm-9">
+    {% if object.bioanalyzer_file %}<a href="{{ object.bioanalyzer_file.url }}" target="_blank" rel="noopener">Download</a>{% else %}—{% endif %}
+  </dd>
+{% endblock %}
+{% block related_sections %}
+<div class="card">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    Sequencing batches
+    <a href="{% url 'ngs:sequencingbatch-create' %}" class="btn btn-sm btn-primary">+ Add a batch</a>
+  </div>
+  <div class="card-body p-0">
+    {% if sequencing_batches %}
+    <table class="table table-hover align-middle mb-0">
+      <thead><tr><th>#</th><th class="text-end">Actions</th></tr></thead>
+      <tbody>
+        {% for b in sequencing_batches %}
+        <tr>
+          <td><a href="{% url 'ngs:sequencingbatch-detail' b.pk %}">Batch #{{ b.pk }}</a></td>
+          <td class="text-end">
+            <a href="{% url 'ngs:sequencingbatch-update' b.pk %}" class="btn btn-outline-secondary btn-sm">Edit</a>
+            <a href="{% url 'ngs:sequencingbatch-delete' b.pk %}" class="btn btn-outline-danger btn-sm">Delete</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="ff-empty mb-0">No sequencing batches for this NGS sample.</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

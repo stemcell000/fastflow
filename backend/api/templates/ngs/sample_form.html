@@ -1,0 +1,37 @@
+{% extends "ngs/_form_base.html" %}
+{% block form_title %}Sample{% endblock %}
+
+{% block extra_scripts %}
+<script>
+(function () {
+  // Each rule shows `target` only when `controller`'s value equals `value`.
+  const rules = [
+    { controller: 'sample_type', value: 'plasmid', target: 'plasmid_number' },
+    { controller: 'sample_type', value: 'aav', target: 'production_number' },
+    { controller: 'sample_type', value: 'other', target: 'sample_type_other' },
+    { controller: 'organ', value: 'other', target: 'organ_other' },
+    { controller: 'serotype', value: 'other', target: 'serotype_other' },
+    { controller: 'injection_type', value: 'other', target: 'injection_type_other' },
+  ];
+
+  function wrapperFor(fieldName) {
+    return document.getElementById('div_id_' + fieldName);
+  }
+
+  function applyRule(rule) {
+    const controllerEl = document.getElementById('id_' + rule.controller);
+    const targetWrapper = wrapperFor(rule.target);
+    if (!controllerEl || !targetWrapper) return;
+    targetWrapper.hidden = controllerEl.value !== rule.value;
+  }
+
+  rules.forEach(function (rule) {
+    const controllerEl = document.getElementById('id_' + rule.controller);
+    if (controllerEl) {
+      controllerEl.addEventListener('change', function () { applyRule(rule); });
+    }
+    applyRule(rule); // set initial visibility (e.g. when editing an existing sample)
+  });
+})();
+</script>
+{% endblock %}

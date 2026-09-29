@@ -1,0 +1,168 @@
+{% extends "base.html" %}
+{% block page_title %}Upload a FASTQ file{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-12 col-lg-7">
+    <div class="ff-page-header">
+      <h1>Upload a FASTQ file</h1>
+    </div>
+    <p class="text-muted small">
+      Large files (up to ~200 GB) are sent in chunks: if the network drops,
+      reselect the same file and click "Upload" again — the transfer will resume where it left off.
+    </p>
+
+    {% csrf_token %}
+
+    <div class="card">
+      <div class="card-body p-4">
+        <div class="mb-3">
+          <label class="form-label">FASTQ</label>
+          <select id="ff-fastq" class="form-select" required {% if selected_fastq %}disabled{% endif %}>
+            <option value="" disabled {% if not selected_fastq %}selected{% endif %}>— Choose —</option>
+            {% for f in fastqs %}
+            <option value="{{ f.pk }}" {% if selected_fastq.pk == f.pk %}selected{% endif %}>FASTQ #{{ f.pk }} ({{ f.sequencing_product }})</option>
+            {% endfor %}
+          </select>
+          {% if selected_fastq %}
+          <input type="hidden" id="ff-fastq-hidden" value="{{ selected_fastq.pk }}">
+          {% endif %}
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Comment</label>
+          <textarea id="ff-comment" class="form-control" rows="2" placeholder="E.g.: NovaSeq run 03/12, batch A"></textarea>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">File</label>
+          <input type="file" id="ff-file" class="form-control">
+        </div>
+
+        <div id="ff-progress-wrap" class="mb-3" hidden>
+          <div class="progress" style="height: 22px;">
+            <div id="ff-progress-bar" class="progress-bar" role="progressbar" style="width: 0%">0%</div>
+          </div>
+          <p id="ff-progress-text" class="text-muted small mt-1 mb-0"></p>
+        </div>
+
+        <div id="ff-alert"></div>
+
+        <div class="d-flex gap-2">
+          <button type="button" id="ff-upload-btn" class="btn btn-primary">Upload</button>
+          <a href="{% if selected_fastq %}{% url 'ngs:fastq-detail' selected_fastq.pk %}{% else %}{% url 'ngs:sequencingproduct-list' %}{% endif %}" class="btn btn-outline-secondary">Cancel</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+(function () {
+  const CHUNK_SIZE = {{ chunk_size }};
+  const INIT_URL = "{% url 'ngs:chunkedupload-init' %}";
+
+  function csrfToken() {
+    return document.querySelector('input[name=csrfmiddlewaretoken]').value;
+  }
+
+  function chunkUrl(uploadId) {
+    return INIT_URL.replace('uploads/init/', 'uploads/' + uploadId + '/chunk/');
+  }
+
+  function setAlert(message, kind) {
+    document.getElementById('ff-alert').innerHTML = message
+      ? '<div class="alert alert-' + kind + '">' + message + '</div>' : '';
+  }
+
+  function setProgress(offset, total) {
+    const pct = total ? Math.floor((offset / total) * 100) : 0;
+    document.getElementById('ff-progress-wrap').hidden = false;
+    document.getElementById('ff-progress-bar').style.width = pct + '%';
+    document.getElementById('ff-progress-bar').textContent = pct + '%';
+    document.getElementById('ff-progress-text').textContent =
+      (offset / (1024 * 1024)).toFixed(1) + ' MB / ' + (total / (1024 * 1024)).toFixed(1) + ' MB';
+  }
+
+  async function initUpload(fastqId, filename, totalSize, comment) {
+    const resp = await fetch(INIT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken() },
+      body: JSON.stringify({ fastq_id: fastqId, filename: filename, total_size: totalSize, comment: comment }),
+    });
+    const data = await resp.json();
+    if (!data.ok) throw new Error(data.error || "Initialization failed.");
+    return data;
+  }
+
+  async function sendChunk(uploadId, offset, blob) {
+    const resp = await fetch(chunkUrl(uploadId), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/octet-stream',
+        'X-CSRFToken': csrfToken(),
+        'X-Chunk-Offset': String(offset),
+      },
+      body: blob,
+    });
+    const data = await resp.json();
+    if (resp.status === 409 && data.offset !== undefined) {
+      return { resync: data.offset };
+    }
+    if (!data.ok) throw new Error(data.error || "Chunk upload failed.");
+    return data;
+  }
+
+  async function uploadWithRetry(uploadId, offset, file) {
+    let attempts = 0;
+    while (offset < file.size) {
+      const blob = file.slice(offset, Math.min(offset + CHUNK_SIZE, file.size));
+      try {
+        const result = await sendChunk(uploadId, offset, blob);
+        if (result.resync !== undefined) {
+          offset = result.resync;
+          continue;
+        }
+        offset = result.offset;
+        attempts = 0;
+        setProgress(offset, file.size);
+        if (result.completed) return;
+      } catch (err) {
+        attempts += 1;
+        if (attempts > 6) throw err;
+        setAlert('Network interruption, retrying (' + attempts + '/6)…', 'warning');
+        await new Promise((r) => setTimeout(r, Math.min(2000 * attempts, 15000)));
+      }
+    }
+  }
+
+  document.getElementById('ff-upload-btn').addEventListener('click', async function () {
+    const fastqSelect = document.getElementById('ff-fastq');
+    const fastqHidden = document.getElementById('ff-fastq-hidden');
+    const fastqId = fastqHidden ? fastqHidden.value : fastqSelect.value;
+    const fileInput = document.getElementById('ff-file');
+    const comment = document.getElementById('ff-comment').value;
+    const file = fileInput.files[0];
+
+    setAlert('', null);
+    if (!fastqId) { setAlert('Please choose a FASTQ.', 'danger'); return; }
+    if (!file) { setAlert('Please choose a file.', 'danger'); return; }
+
+    this.disabled = true;
+    this.textContent = 'Uploading…';
+
+    try {
+      const init = await initUpload(fastqId, file.name, file.size, comment);
+      setProgress(init.offset, file.size);
+      await uploadWithRetry(init.upload_id, init.offset, file);
+      setAlert('Upload complete.', 'success');
+      window.location.href = "{% url 'ngs:fastq-detail' 0 %}".replace('/0/', '/' + fastqId + '/');
+    } catch (err) {
+      setAlert("Upload failed: " + err.message + " — reselect the same file and click \"Upload\" again to resume.", 'danger');
+      this.disabled = false;
+      this.textContent = 'Upload';
+    }
+  });
+})();
+</script>
+{% endblock %}

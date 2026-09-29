@@ -1,0 +1,18 @@
+{% extends "ngs/_list_base.html" %}
+{% block page_title %}Sequencing batches{% endblock %}
+{% block list_title %}Sequencing batches{% endblock %}
+{% block list_actions %}
+  <a href="{% url 'ngs:sequencingbatch-create' %}" class="btn btn-primary btn-sm">+ Add a batch</a>
+{% endblock %}
+{% block table_head %}
+  <th>#</th><th>NGS Sample</th><th class="text-end">Actions</th>
+{% endblock %}
+{% block table_row %}
+  <td><a href="{% url 'ngs:sequencingbatch-detail' object.pk %}">Batch #{{ object.pk }}</a></td>
+  <td><a href="{% url 'ngs:ngssample-detail' object.ngs_sample_id %}">{{ object.ngs_sample }}</a></td>
+  <td class="text-end">
+    <a href="{% url 'ngs:sequencingbatch-update' object.pk %}" class="btn btn-outline-secondary btn-sm">Edit</a>
+    <a href="{% url 'ngs:sequencingbatch-delete' object.pk %}" class="btn btn-outline-danger btn-sm">Delete</a>
+  </td>
+{% endblock %}
+{% block empty_message %}No sequencing batches recorded yet. <a href="{% url 'ngs:sequencingbatch-create' %}">Add the first one</a>.{% endblock %}

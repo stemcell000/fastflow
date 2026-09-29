@@ -1,0 +1,23 @@
+{% extends "ngs/_list_base.html" %}
+{% block page_title %}Scripts{% endblock %}
+{% block list_title %}Scripts{% endblock %}
+{% block list_actions %}
+  <a href="{% url 'ngs:script-create' %}" class="btn btn-primary btn-sm">+ Add a script</a>
+{% endblock %}
+{% block table_head %}
+  <th>Name</th><th>Language</th><th>Version</th><th>Manual run</th><th>Created</th><th class="text-end">Actions</th>
+{% endblock %}
+{% block table_row %}
+  <td><a href="{% url 'ngs:script-detail' object.pk %}">{{ object.name|default:"—" }}</a></td>
+  <td>{{ object.get_language_display }}</td>
+  <td>{{ object.version|default:"—" }}</td>
+  <td>
+    {% if object.manual_run %}<a href="{% url 'ngs:manualrun-detail' object.manual_run_id %}">Manual run #{{ object.manual_run_id }}</a>{% else %}<span class="text-muted">— (standalone)</span>{% endif %}
+  </td>
+  <td>{{ object.created_at|date:"d/m/Y" }}</td>
+  <td class="text-end">
+    <a href="{% url 'ngs:script-update' object.pk %}" class="btn btn-outline-secondary btn-sm">Edit</a>
+    <a href="{% url 'ngs:script-delete' object.pk %}" class="btn btn-outline-danger btn-sm">Delete</a>
+  </td>
+{% endblock %}
+{% block empty_message %}No scripts registered yet. <a href="{% url 'ngs:script-create' %}">Add the first one</a>.{% endblock %}

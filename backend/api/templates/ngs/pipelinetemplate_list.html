@@ -1,0 +1,22 @@
+{% extends "ngs/_list_base.html" %}
+{% block page_title %}Pipeline templates{% endblock %}
+{% block list_title %}Pipeline templates{% endblock %}
+{% block list_actions %}
+  <a href="{% url 'ngs:pipelinetemplate-builder-new' %}" class="btn btn-primary btn-sm">+ New template (visual editor)</a>
+{% endblock %}
+{% block table_head %}
+  <th>Name</th><th>Description</th><th>Steps</th><th class="text-end">Actions</th>
+{% endblock %}
+{% block table_row %}
+  <td><a href="{% url 'ngs:pipelinetemplate-detail' object.pk %}">{{ object.name }}</a></td>
+  <td>{{ object.description|default:"—"|truncatechars:80 }}</td>
+  <td>{{ object.steps.count }}</td>
+  <td class="text-end">
+    <a href="{% url 'ngs:pipelinetemplate-builder' object.pk %}" class="btn btn-primary btn-sm">✎ Visual editor</a>
+    <a href="/admin/api/pipelinetemplate/{{ object.pk }}/change/" class="btn btn-outline-secondary btn-sm">Edit (admin)</a>
+  </td>
+{% endblock %}
+{% block empty_message %}
+  No pipeline templates yet. <a href="{% url 'ngs:pipelinetemplate-builder-new' %}">Create one with the visual editor</a>
+  (or from <a href="/admin/api/pipelinetemplate/add/">the Django admin</a>).
+{% endblock %}

@@ -1,0 +1,22 @@
+{% extends "ngs/_list_base.html" %}
+{% block page_title %}Samples{% endblock %}
+{% block list_title %}Samples{% endblock %}
+{% block list_actions %}
+  <a href="{% url 'ngs:sample-create' %}" class="btn btn-primary btn-sm">+ Add a sample</a>
+{% endblock %}
+{% block table_head %}
+  <th>Name</th><th>Project</th><th>Type</th><th>Organ</th><th>Serotype</th><th>Created</th><th class="text-end">Actions</th>
+{% endblock %}
+{% block table_row %}
+  <td><a href="{% url 'ngs:sample-detail' object.pk %}">{{ object.name }}</a></td>
+  <td>{{ object.project_name|default:"—" }}</td>
+  <td>{{ object.get_sample_type_display|default:"—" }}</td>
+  <td>{{ object.get_organ_display|default:"—" }}</td>
+  <td>{{ object.get_serotype_display|default:"—" }}</td>
+  <td>{{ object.created_at|date:"d/m/Y" }}</td>
+  <td class="text-end">
+    <a href="{% url 'ngs:sample-update' object.pk %}" class="btn btn-outline-secondary btn-sm">Edit</a>
+    <a href="{% url 'ngs:sample-delete' object.pk %}" class="btn btn-outline-danger btn-sm">Delete</a>
+  </td>
+{% endblock %}
+{% block empty_message %}No samples recorded yet. <a href="{% url 'ngs:sample-create' %}">Add the first one</a>.{% endblock %}

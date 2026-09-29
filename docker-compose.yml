@@ -55,6 +55,42 @@ services:
     networks:
       - backend
 
+  # ── Celery Worker ────────────────────────────────────────────────────────────
+  # Exécute les tâches de fond, dont le moteur de pipelines ETL fastq : chaque
+  # étape est lancée comme un conteneur Docker "frère" via le socket Docker de
+  # l'hôte (Docker-outside-of-Docker). D'où :
+  #   - le montage du socket Docker de l'hôte,
+  #   - `user: root` pour pouvoir y accéder quel que soit le GID du groupe
+  #     docker sur l'hôte (les conteneurs d'étapes eux-mêmes restent isolés :
+  #     réseau désactivé, mémoire limitée — voir api/tasks.py),
+  #   - HOST_MEDIA_ROOT : chemin ABSOLU de ./media sur la machine hôte, pour
+  #     que les volumes montés dans les conteneurs d'étapes pointent au bon
+  #     endroit (les chemins vus par le démon Docker sont ceux de l'hôte, pas
+  #     ceux de ce conteneur worker). À définir dans .env.
+  celery-worker:
+    build:
+      context: .
+      dockerfile: docker/web/Dockerfile
+    restart: unless-stopped
+    user: root
+    env_file: .env
+    environment:
+      DJANGO_SETTINGS_MODULE: core.settings
+      POSTGRES_HOST: db
+      REDIS_HOST: redis
+      HOST_MEDIA_ROOT: ${HOST_MEDIA_ROOT}
+    volumes:
+      - ./media:/app/media
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - backend
+    command: celery -A core worker --loglevel=info --concurrency=4
+
   # ── Celery Beat ──────────────────────────────────────────────────────────────
   celery-beat:
     build:
@@ -75,11 +111,14 @@ services:
         condition: service_healthy
     networks:
       - backend
+    # Pas de --pidfile : Docker garantit déjà qu'une seule instance de ce
+    # conteneur tourne ; un pidfile persisté sur le volume ./data survivrait
+    # à un arrêt brutal (crash, reboot) et bloquerait tout redémarrage
+    # suivant en boucle ("Pidfile already exists").
     command: >
       celery -A core beat
         --loglevel=info
         --scheduler django_celery_beat.schedulers:DatabaseScheduler
-        --pidfile=/app/celerybeat/celerybeat.pid
         --schedule=/app/celerybeat/celerybeat-schedule
 
   # ── Nginx ────────────────────────────────────────────────────────────────────

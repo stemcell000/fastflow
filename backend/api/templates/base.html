@@ -1,0 +1,88 @@
+{% load static %}<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block page_title %}FastFlow{% endblock %} — FastFlow</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Sans+Condensed:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="{% static 'ngs/css/theme.css' %}" rel="stylesheet">
+  {% block extra_head %}{% endblock %}
+</head>
+<body>
+
+<nav class="navbar navbar-expand-lg navbar-dark ff-navbar sticky-top">
+  <div class="container-fluid px-3 px-lg-4">
+    <a class="navbar-brand" href="{% url 'home' %}">
+      FastFlow
+      <small>FASTQ pipeline</small>
+    </a>
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#ffNav">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+    <div class="collapse navbar-collapse" id="ffNav">
+      <ul class="navbar-nav ms-auto mb-2 mb-lg-0 align-items-lg-center">
+        {% if user.is_authenticated %}
+        <li class="nav-item"><a class="nav-link" href="{% url 'ngs:sample-list' %}">Samples</a></li>
+        <li class="nav-item"><a class="nav-link" href="{% url 'ngs:protocol-list' %}">Protocols</a></li>
+        <li class="nav-item"><a class="nav-link" href="{% url 'ngs:ngssample-list' %}">NGS Samples</a></li>
+        <li class="nav-item"><a class="nav-link" href="{% url 'ngs:sequencingbatch-list' %}">Batches</a></li>
+        <li class="nav-item"><a class="nav-link" href="{% url 'ngs:sequencingproduct-list' %}">Products</a></li>
+        <li class="nav-item"><a class="nav-link" href="{% url 'ngs:manualrun-list' %}">Manual tracking</a></li>
+        <li class="nav-item"><a class="nav-link" href="{% url 'ngs:script-list' %}">Scripts</a></li>
+        <li class="nav-item dropdown">
+          <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">Pipeline</a>
+          <ul class="dropdown-menu dropdown-menu-end">
+            <li><a class="dropdown-item" href="{% url 'ngs:pipelinetemplate-list' %}">Templates</a></li>
+            <li><a class="dropdown-item" href="{% url 'ngs:pipelinetemplate-builder-new' %}">New template (visual editor)</a></li>
+            <li><a class="dropdown-item" href="{% url 'ngs:pipelinerun-list' %}">Runs</a></li>
+          </ul>
+        </li>
+        <li class="nav-item"><a class="nav-link" href="/admin/" target="_blank" rel="noopener">Admin</a></li>
+        <li class="nav-item ms-lg-3">
+          <span class="nav-link disabled text-white-50 py-1">{{ user.get_username }}</span>
+        </li>
+        <li class="nav-item">
+          <form method="post" action="{% url 'portal_logout' %}" class="px-3 px-lg-0">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-sm btn-outline-light">Log out</button>
+          </form>
+        </li>
+        {% else %}
+        <li class="nav-item"><a class="nav-link" href="{% url 'portal_login' %}">Log in</a></li>
+        {% endif %}
+      </ul>
+    </div>
+  </div>
+</nav>
+
+<main class="container-fluid px-3 px-lg-4 py-4">
+  {% if messages %}
+    {% for message in messages %}
+      <div class="alert {% if message.tags %}alert-{{ message.tags }}{% else %}alert-info{% endif %} alert-dismissible fade show" role="alert">
+        {{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+      </div>
+    {% endfor %}
+  {% endif %}
+
+  {% block breadcrumb %}{% endblock %}
+
+  {% block content %}{% endblock %}
+</main>
+
+<footer class="ff-footer">
+  <div class="container-fluid px-3 px-lg-4 d-flex flex-wrap justify-content-between gap-2">
+    <span>FastFlow — Institut de la Vision 2026</span>
+    <span><a href="/admin/">Admin interface</a></span>
+  </div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+{% block extra_scripts %}{% endblock %}
+</body>
+</html>

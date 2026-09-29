@@ -1,0 +1,98 @@
+{% extends "ngs/_detail_base.html" %}
+{% block page_title %}FASTQ #{{ object.pk }}{% endblock %}
+{% block detail_title %}FASTQ #{{ object.pk }}{% endblock %}
+{% block detail_actions %}
+  <a href="{% url 'ngs:pipelinerun-launch' object.pk %}" class="btn btn-primary btn-sm">▶ Launch a pipeline</a>
+  <a href="{% url 'ngs:fastq-delete' object.pk %}" class="btn btn-outline-danger btn-sm">Delete</a>
+{% endblock %}
+{% block info_header %}FASTQ{% endblock %}
+{% block info_body %}
+  <dt class="col-sm-3">Sequencing product</dt>
+  <dd class="col-sm-9"><a href="{% url 'ngs:sequencingproduct-detail' object.sequencing_product_id %}">{{ object.sequencing_product }}</a></dd>
+{% endblock %}
+{% block related_sections %}
+<div class="card mb-4">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    FASTQ files
+    <a href="{% url 'ngs:fastqfile-create' %}?fastq={{ object.pk }}" class="btn btn-sm btn-primary">+ Add a file</a>
+  </div>
+  <div class="card-body p-0">
+    {% if fastq_files %}
+    <table class="table table-hover align-middle mb-0">
+      <thead><tr><th>#</th><th>File</th><th>Comment</th><th class="text-end">Actions</th></tr></thead>
+      <tbody>
+        {% for ff in fastq_files %}
+        <tr>
+          <td>#{{ ff.pk }}</td>
+          <td>{% if ff.file %}<a href="{{ ff.file.url }}" target="_blank" rel="noopener">Download</a>{% else %}—{% endif %}</td>
+          <td>{{ ff.comment|default:"—" }}</td>
+          <td class="text-end">
+            <a href="{% url 'ngs:fastqfile-delete' ff.pk %}" class="btn btn-outline-danger btn-sm">Delete</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="ff-empty mb-0">No FASTQ files.</p>
+    {% endif %}
+  </div>
+</div>
+
+<div class="card mb-4">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    Pipeline runs
+    <a href="{% url 'ngs:pipelinerun-launch' object.pk %}" class="btn btn-sm btn-primary">▶ Launch a pipeline</a>
+  </div>
+  <div class="card-body p-0">
+    {% if object.pipeline_runs.all %}
+    <table class="table table-hover align-middle mb-0">
+      <thead><tr><th>#</th><th>Template</th><th>Status</th><th>Launched</th></tr></thead>
+      <tbody>
+        {% for run in object.pipeline_runs.all %}
+        <tr>
+          <td><a href="{% url 'ngs:pipelinerun-detail' run.pk %}">Run #{{ run.pk }}</a></td>
+          <td>{{ run.template.name }}</td>
+          <td>
+            {% if run.status == 'success' %}<span class="badge bg-success">{{ run.get_status_display }}</span>
+            {% elif run.status == 'failed' %}<span class="badge bg-danger">{{ run.get_status_display }}</span>
+            {% elif run.status == 'running' %}<span class="badge bg-warning text-dark">{{ run.get_status_display }}</span>
+            {% else %}<span class="badge bg-secondary">{{ run.get_status_display }}</span>{% endif %}
+          </td>
+          <td>{{ run.created_at|date:"d/m/Y H:i" }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="ff-empty mb-0">No pipeline runs for this FASTQ.</p>
+    {% endif %}
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    Manual tracking
+    <a href="{% url 'ngs:manualrun-create' %}" class="btn btn-sm btn-primary">+ Add a manual run</a>
+  </div>
+  <div class="card-body p-0">
+    {% if manual_runs %}
+    <table class="table table-hover align-middle mb-0">
+      <thead><tr><th>#</th><th class="text-end">Actions</th></tr></thead>
+      <tbody>
+        {% for mr in manual_runs %}
+        <tr>
+          <td><a href="{% url 'ngs:manualrun-detail' mr.pk %}">Manual run #{{ mr.pk }}</a></td>
+          <td class="text-end">
+            <a href="{% url 'ngs:manualrun-delete' mr.pk %}" class="btn btn-outline-danger btn-sm">Delete</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="ff-empty mb-0">No manual runs for this FASTQ.</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

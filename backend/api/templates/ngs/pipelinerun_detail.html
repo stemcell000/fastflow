@@ -36,7 +36,7 @@
   <div class="card-body p-0">
     <table class="table align-middle mb-0">
       <thead>
-        <tr><th>Step</th><th>Depends on</th><th>Status</th><th>Exit code</th><th>Duration</th><th>Outputs</th><th>Log</th></tr>
+        <tr><th>Step</th><th>Depends on</th><th>Status</th><th>Exit code</th><th>Duration</th><th>Outputs</th><th>Report</th><th>Log</th></tr>
       </thead>
       <tbody>
         {% for sr in step_runs %}
@@ -60,9 +60,28 @@
             {% if sr.started_at and sr.finished_at %}{{ sr.finished_at|timeuntil:sr.started_at }}{% else %}—{% endif %}
           </td>
           <td>
-            {% for a in sr.artifacts.all %}
-              {% if a.kind == 'output' %}<a href="{{ a.file.url }}" target="_blank" rel="noopener" class="d-block small">{{ a.label }}</a>{% endif %}
+            {% for a in sr.output_artifacts %}
+              <a href="{{ a.file.url }}" target="_blank" rel="noopener" class="d-block small">{{ a.label }}</a>
             {% empty %}<span class="text-muted small">—</span>{% endfor %}
+          </td>
+          <td>
+            {% if sr.report_items %}
+            <details>
+              <summary class="small">View</summary>
+              <table class="table table-sm mb-0" style="max-width: 320px;">
+                {% for key, value in sr.report_items %}
+                <tr><th class="small">{{ key }}</th><td class="small">{{ value }}</td></tr>
+                {% endfor %}
+              </table>
+            </details>
+            {% elif sr.report_raw %}
+            <details>
+              <summary class="small">View</summary>
+              <pre class="small bg-light p-2 mb-0" style="max-width:320px;max-height:200px;overflow:auto;">{{ sr.report_raw }}</pre>
+            </details>
+            {% elif sr.report_error %}
+            <span class="text-danger small">{{ sr.report_error }}</span>
+            {% else %}<span class="text-muted small">—</span>{% endif %}
           </td>
           <td>
             {% if sr.log %}

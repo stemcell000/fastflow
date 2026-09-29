@@ -22,19 +22,20 @@
   <dd class="col-sm-9">{% if object.summary_file %}<a href="{{ object.summary_file.url }}" target="_blank" rel="noopener">Download</a>{% else %}—{% endif %}</dd>
 {% endblock %}
 {% block related_sections %}
-<div class="card">
+<div class="card mb-4">
   <div class="card-header d-flex justify-content-between align-items-center">
     FASTQ
-    <a href="{% url 'ngs:fastq-create' %}" class="btn btn-sm btn-primary">+ Add a FASTQ</a>
+    <a href="{% url 'ngs:fastqfile-create' %}?product={{ object.pk }}" class="btn btn-sm btn-primary">+ Upload a FASTQ file</a>
   </div>
   <div class="card-body p-0">
     {% if fastqs %}
     <table class="table table-hover align-middle mb-0">
-      <thead><tr><th>#</th><th class="text-end">Actions</th></tr></thead>
+      <thead><tr><th>#</th><th>NGS sample</th><th class="text-end">Actions</th></tr></thead>
       <tbody>
         {% for f in fastqs %}
         <tr>
           <td><a href="{% url 'ngs:fastq-detail' f.pk %}">FASTQ #{{ f.pk }}</a></td>
+          <td>{% if f.ngs_sample %}{{ f.ngs_sample.operating_name }}{% else %}—{% endif %}</td>
           <td class="text-end">
             <a href="{% url 'ngs:fastq-delete' f.pk %}" class="btn btn-outline-danger btn-sm">Delete</a>
           </td>
@@ -44,6 +45,17 @@
     </table>
     {% else %}
     <p class="ff-empty mb-0">No FASTQ for this product.</p>
+    {% endif %}
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">Manual tracking</div>
+  <div class="card-body">
+    {% if object.manual_run %}
+    <p class="mb-0"><a href="{% url 'ngs:manualrun-detail' object.manual_run.pk %}">Manual run #{{ object.manual_run.pk }}</a></p>
+    {% else %}
+    <p class="ff-empty mb-0">No manual run for this product yet — <a href="{% url 'ngs:manualrun-create' %}">add one</a>.</p>
     {% endif %}
   </div>
 </div>

@@ -99,11 +99,12 @@ la précédente) :
 6. `06_sequencing_products.csv`
 7. `07_fastq.csv`
 8. `08_fastq_files.csv`
-9. `09_pipelines.csv`
+9. `09_manual_runs.csv`
 10. `10_scripts.csv`
-11. `11_settings.csv`
-12. `12_counts.csv`
-13. `13_analysis.csv`
+11. `10b_script_parameters.csv`
+12. `11_settings.csv`
+13. `12_counts.csv`
+14. `13_analysis.csv`
 
 Les colonnes de type fichier sont ignorées à l'import et doivent être
 déposées manuellement ensuite. Un guide détaillé destiné aux utilisateurs non

@@ -19,6 +19,27 @@
   <dt class="col-sm-3">Created</dt><dd class="col-sm-9">{{ object.created_at|date:"d/m/Y H:i" }}</dd>
 {% endblock %}
 {% block related_sections %}
+<div class="card mb-4">
+  <div class="card-header">Execution parameters</div>
+  <div class="card-body p-0">
+    {% if object.parameters.all %}
+    <table class="table table-hover align-middle mb-0">
+      <thead><tr><th>Name</th><th>Description</th></tr></thead>
+      <tbody>
+        {% for p in object.parameters.all %}
+        <tr>
+          <td>{{ p.name }}</td>
+          <td>{{ p.description|default:"—" }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="ff-empty mb-0">No parameters documented for this script.</p>
+    {% endif %}
+  </div>
+</div>
+
 <div class="card">
   <div class="card-header">Used in pipeline steps</div>
   <div class="card-body p-0">

@@ -95,12 +95,13 @@ class Sample(models.Model):
 class Protocol(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     primer_pair = models.CharField(max_length=255, blank=True)
-    commentary = models.CharField(max_length=1000, blank=True)
+    commentary = models.TextField(blank=True)
     protocol_description_file = models.FileField(
         upload_to='protocols/descriptions/', blank=True, null=True
     )
-    sample = models.ForeignKey(
-        Sample, on_delete=models.CASCADE, related_name='protocols'
+    samples = models.ManyToManyField(
+        Sample, related_name='protocols',
+        help_text="One protocol can be associated with several samples.",
     )
 
     class Meta:
@@ -111,23 +112,40 @@ class Protocol(models.Model):
 
 
 class NgsSample(models.Model):
-    index = models.CharField(max_length=255, blank=True)
-    final_concentration = models.FloatField(null=True, blank=True)
-    bioanalyzer_file = models.FileField(
-        upload_to='ngs_samples/bioanalyzer/', blank=True, null=True
+    # One NGS sample corresponds to exactly one originating Sample — a given
+    # Sample can be prepped for sequencing at most once.
+    sample = models.OneToOneField(
+        Sample, on_delete=models.CASCADE, related_name='ngs_sample',
     )
     protocol = models.ForeignKey(
         Protocol, on_delete=models.CASCADE, related_name='ngs_samples'
     )
+    operating_name = models.CharField(
+        max_length=255,
+        help_text="Sequencing operating name. Defaults to the originating sample's name.",
+    )
+    index_1 = models.CharField(max_length=255, blank=True, verbose_name='Index 1')
+    index_2 = models.CharField(max_length=255, blank=True, verbose_name='Index 2')
+    final_concentration = models.FloatField(null=True, blank=True)
+    bioanalyzer_file = models.FileField(
+        upload_to='ngs_samples/bioanalyzer/', blank=True, null=True
+    )
+    # A sequencing batch pools together several NGS samples (multiplexed by
+    # index) for a single sequencing run — one batch, many NGS samples.
+    sequencing_batch = models.ForeignKey(
+        'SequencingBatch', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='ngs_samples',
+    )
 
     def __str__(self):
-        return f"NGS Sample #{self.pk} (index: {self.index})"
+        return f"NGS Sample #{self.pk} ({self.operating_name})"
 
 
 class SequencingBatch(models.Model):
-    ngs_sample = models.ForeignKey(
-        NgsSample, on_delete=models.CASCADE, related_name='sequencing_batches'
-    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
 
     def __str__(self):
         return f"Sequencing Batch #{self.pk}"
@@ -171,6 +189,11 @@ class SequencingProduct(models.Model):
 class Fastq(models.Model):
     sequencing_product = models.ForeignKey(
         SequencingProduct, on_delete=models.CASCADE, related_name='fastqs'
+    )
+    # Which NGS sample (multiplexed within the sequencing product) this FASTQ
+    # deliverable was demultiplexed for.
+    ngs_sample = models.ForeignKey(
+        NgsSample, on_delete=models.SET_NULL, null=True, blank=True, related_name='fastqs'
     )
 
     def __str__(self):
@@ -220,12 +243,18 @@ class ChunkedUpload(models.Model):
 
 
 class ManualRun(models.Model):
-    """Manual file tracking for a FASTQ (script/settings/counts/analysis
-    uploaded by hand). Distinct from the pipeline execution engine
-    (PipelineTemplate/PipelineRun below), which actually runs the processing."""
-    fastq = models.ForeignKey(
-        Fastq, on_delete=models.CASCADE, related_name='manual_runs'
+    """Manual file tracking for a sequencing product (script/settings/counts/
+    analysis uploaded by hand). One manual run follows one sequencing product
+    and, through it, all of the FASTQs demultiplexed from that product —
+    distinct from the pipeline execution engine (PipelineTemplate/PipelineRun
+    below), which actually runs the processing."""
+    sequencing_product = models.OneToOneField(
+        SequencingProduct, on_delete=models.CASCADE, related_name='manual_run'
     )
+
+    @property
+    def fastqs(self):
+        return self.sequencing_product.fastqs.all()
 
     class Meta:
         verbose_name = "Manual run"
@@ -262,6 +291,20 @@ class Script(models.Model):
     def __str__(self):
         label = self.name or f"Script #{self.pk}"
         return f"{label} ({self.get_language_display()}{f' v{self.version}' if self.version else ''})"
+
+
+class ScriptParameter(models.Model):
+    """A parameter the script expects to be run (e.g. a CLI argument), with a
+    description of what to enter — documents how to execute the script."""
+    script = models.ForeignKey(Script, on_delete=models.CASCADE, related_name='parameters')
+    name = models.CharField(max_length=255)
+    description = models.CharField(max_length=1000, blank=True)
+
+    class Meta:
+        ordering = ['id']
+
+    def __str__(self):
+        return self.name
 
 
 class Setting(models.Model):
@@ -354,7 +397,9 @@ class PipelineStep(models.Model):
         help_text=(
             "Shell command executed in the container (cwd=/work). "
             "Inputs are available in /work/in/, outputs are expected in /work/out/. "
-            "E.g.: python /work/script.py --input /work/in --output /work/out"
+            "E.g.: python /work/script.py --input /work/in --output /work/out. "
+            "If the script writes a report.json file to /work/out/, it is captured "
+            "as the step's execution report and its contents are shown on the run's report page."
         ),
     )
     depends_on = models.ManyToManyField(
@@ -442,6 +487,7 @@ class StepArtifact(models.Model):
     class Kind(models.TextChoices):
         INPUT = 'input', 'Input'
         OUTPUT = 'output', 'Output'
+        REPORT = 'report', 'Report'
 
     step_run = models.ForeignKey(
         StepRun, on_delete=models.CASCADE, related_name='artifacts'

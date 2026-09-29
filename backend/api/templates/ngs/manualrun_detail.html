@@ -2,14 +2,36 @@
 {% block page_title %}Manual run #{{ object.pk }}{% endblock %}
 {% block detail_title %}Manual run #{{ object.pk }}{% endblock %}
 {% block detail_actions %}
+  <a href="{% url 'ngs:manualrun-update' object.pk %}" class="btn btn-outline-secondary btn-sm">Edit</a>
   <a href="{% url 'ngs:manualrun-delete' object.pk %}" class="btn btn-outline-danger btn-sm">Delete</a>
 {% endblock %}
 {% block info_header %}Manual run{% endblock %}
 {% block info_body %}
-  <dt class="col-sm-3">FASTQ</dt>
-  <dd class="col-sm-9"><a href="{% url 'ngs:fastq-detail' object.fastq_id %}">{{ object.fastq }}</a></dd>
+  <dt class="col-sm-3">Sequencing product</dt>
+  <dd class="col-sm-9"><a href="{% url 'ngs:sequencingproduct-detail' object.sequencing_product_id %}">{{ object.sequencing_product }}</a></dd>
 {% endblock %}
 {% block related_sections %}
+<div class="card mb-4">
+  <div class="card-header">FASTQ (via sequencing product)</div>
+  <div class="card-body p-0">
+    {% if fastqs %}
+    <table class="table table-hover align-middle mb-0">
+      <thead><tr><th>#</th><th>NGS sample</th></tr></thead>
+      <tbody>
+        {% for f in fastqs %}
+        <tr>
+          <td><a href="{% url 'ngs:fastq-detail' f.pk %}">FASTQ #{{ f.pk }}</a></td>
+          <td>{% if f.ngs_sample %}{{ f.ngs_sample.operating_name }}{% else %}—{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="ff-empty mb-0">No FASTQ for this sequencing product yet.</p>
+    {% endif %}
+  </div>
+</div>
+
 <div class="card mb-4">
   <div class="card-header d-flex justify-content-between align-items-center">
     Scripts

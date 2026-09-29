@@ -29,6 +29,10 @@
     {{ object.get_injection_type_display|default:"—" }}{% if object.injection_type == 'other' and object.injection_type_other %} — {{ object.injection_type_other }}{% endif %}
   </dd>
   <dt class="col-sm-3">Description</dt><dd class="col-sm-9">{{ object.description|default:"—" }}</dd>
+  <dt class="col-sm-3">NGS sample</dt>
+  <dd class="col-sm-9">
+    {% if object.ngs_sample %}<a href="{% url 'ngs:ngssample-detail' object.ngs_sample.pk %}">{{ object.ngs_sample.operating_name }}</a>{% else %}—{% endif %}
+  </dd>
   <dt class="col-sm-3">Created</dt><dd class="col-sm-9">{{ object.created_at|date:"d/m/Y H:i" }}</dd>
 {% endblock %}
 {% block related_sections %}

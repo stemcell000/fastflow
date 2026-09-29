@@ -62,23 +62,29 @@ TEMPLATES = {
     "03_ngs_samples.csv": {
         "headers": [
             "protocol_primer_pair",    # FK → protocols.primer_pair
-            "protocol_sample_name",    # FK → protocols.sample.name (pour lever l'ambiguïté)
-            "index",                   # optionnel
-            "final_concentration",     # float, optionnel
+            "protocol_sample_name",    # FK → one of protocols.samples.name (disambiguates which protocol usage)
+            "operating_name",          # optional, defaults to protocol_sample_name if blank
+            "index_1",                 # optional
+            "index_2",                 # optional
+            "final_concentration",     # float, optional
         ],
         "example": [
             "Primer_F1/R1",
             "Sample_A",
+            "Sample_A_seq1",
             "IDT_i7_101",
+            "IDT_i5_101",
             "2.5",
         ],
     },
     "04_sequencing_batches.csv": {
         "headers": [
-            "ngs_sample_index",        # FK → ngs_samples.index
-            "ngs_sample_protocol_primer_pair",  # pour lever l'ambiguïté
+            "batch_key",                        # groups rows into the same batch (blank = one batch per row)
+            "ngs_sample_index_1",               # FK → ngs_samples.index_1 (must be non-empty)
+            "ngs_sample_protocol_primer_pair",  # optional, disambiguates when index_1 isn't unique
         ],
         "example": [
+            "1",
             "IDT_i7_101",
             "Primer_F1/R1",
         ],
@@ -120,8 +126,10 @@ TEMPLATES = {
     "07_fastq.csv": {
         "headers": [
             "sequencing_product_id",   # FK → sequencing_products.id
+            "ngs_sample_id",           # optional, FK → ngs_samples.id (NGS sample this FASTQ was demultiplexed for)
         ],
         "example": [
+            "1",
             "1",
         ],
     },
@@ -135,7 +143,7 @@ TEMPLATES = {
     },
     "09_manual_runs.csv": {
         "headers": [
-            "fastq_id",                # FK → fastq.id
+            "sequencing_product_id",   # FK → sequencing_products.id (one manual run per product)
         ],
         "example": [
             "1",
@@ -147,6 +155,18 @@ TEMPLATES = {
         ],
         "example": [
             "1",
+        ],
+    },
+    "10b_script_parameters.csv": {
+        "headers": [
+            "script_id",               # FK → scripts.id
+            "name",                    # e.g. --input
+            "description",             # what to enter for this parameter
+        ],
+        "example": [
+            "1",
+            "--threshold",
+            "Numeric cutoff applied during filtering",
         ],
     },
     "11_settings.csv": {

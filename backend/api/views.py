@@ -2,6 +2,7 @@ import json
 import os
 from pathlib import Path
 
+from django import forms
 from django.conf import settings
 from django.contrib import messages
 from django.core.files.storage import default_storage
@@ -16,8 +17,8 @@ from django.views.generic import (
 from .models import (
     Sample, Protocol, NgsSample, SequencingBatch, SequencingBatchFile,
     SequencingProduct, Fastq, FastqFile, ChunkedUpload, ManualRun, Script,
-    ScriptLanguage, Setting, Count, Analysis,
-    PipelineTemplate, PipelineStep, PipelineRun, StepRun,
+    ScriptParameter, ScriptLanguage, Setting, Count, Analysis,
+    PipelineTemplate, PipelineStep, PipelineRun, StepRun, StepArtifact,
 )
 from .tasks import launch_pipeline_run as _launch_pipeline_run
 
@@ -109,17 +110,20 @@ class ProtocolDetailView(DetailView):
         return ctx
 
 
+PROTOCOL_FIELDS = ['samples', 'primer_pair', 'commentary', 'protocol_description_file']
+
+
 class ProtocolCreateView(CreateView):
     model = Protocol
     template_name = 'ngs/protocol_form.html'
-    fields = ['sample', 'primer_pair', 'commentary', 'protocol_description_file']
+    fields = PROTOCOL_FIELDS
     success_url = reverse_lazy('ngs:protocol-list')
 
 
 class ProtocolUpdateView(UpdateView):
     model = Protocol
     template_name = 'ngs/protocol_form.html'
-    fields = ['sample', 'primer_pair', 'commentary', 'protocol_description_file']
+    fields = PROTOCOL_FIELDS
     success_url = reverse_lazy('ngs:protocol-list')
 
 
@@ -143,23 +147,81 @@ class NgsSampleDetailView(DetailView):
     template_name = 'ngs/ngssample_detail.html'
     context_object_name = 'ngs_sample'
 
-    def get_context_data(self, **kwargs):
-        ctx = super().get_context_data(**kwargs)
-        ctx['sequencing_batches'] = self.object.sequencing_batches.all()
-        return ctx
+
+def _parse_float_or_none(value):
+    value = (value or '').strip()
+    if not value:
+        return None
+    try:
+        return float(value)
+    except ValueError:
+        return None
 
 
-class NgsSampleCreateView(CreateView):
-    model = NgsSample
-    template_name = 'ngs/ngssample_form.html'
-    fields = ['protocol', 'index', 'final_concentration', 'bioanalyzer_file']
-    success_url = reverse_lazy('ngs:ngssample-list')
+def ngssample_bulk_view(request):
+    """A Protocol can be linked to several Samples (many-to-many); this view
+    lets the user pick a Protocol and fill in one NGS-sample row per
+    associated Sample in a single table, instead of one form per sample.
+    Re-visiting for the same protocol lets you edit the rows already saved
+    (NgsSample.sample is one-to-one, so this is a create-or-update)."""
+    protocol_id = request.GET.get('protocol') or request.POST.get('protocol')
+    protocol = None
+    if protocol_id and protocol_id.isdigit():
+        protocol = Protocol.objects.filter(pk=protocol_id).first()
+
+    if request.method == 'POST' and protocol:
+        samples = list(protocol.samples.all())
+        row_errors = []
+        with transaction.atomic():
+            for sample in samples:
+                prefix = f'sample_{sample.pk}_'
+                operating_name = (request.POST.get(prefix + 'operating_name') or '').strip()
+                if not operating_name:
+                    row_errors.append(f"{sample.name}: operating name is required.")
+                    continue
+                NgsSample.objects.update_or_create(
+                    sample=sample,
+                    defaults={
+                        'protocol': protocol,
+                        'operating_name': operating_name,
+                        'index_1': (request.POST.get(prefix + 'index_1') or '').strip(),
+                        'index_2': (request.POST.get(prefix + 'index_2') or '').strip(),
+                        'final_concentration': _parse_float_or_none(request.POST.get(prefix + 'final_concentration')),
+                    },
+                )
+        if row_errors:
+            for err in row_errors:
+                messages.error(request, err)
+        else:
+            messages.success(request, f'NGS samples saved for protocol "{protocol.primer_pair or protocol.pk}".')
+            return redirect('ngs:ngssample-list')
+
+    rows = []
+    if protocol:
+        for sample in protocol.samples.all():
+            existing = NgsSample.objects.filter(sample=sample).first()
+            rows.append({
+                'sample': sample,
+                'operating_name': existing.operating_name if existing else sample.name,
+                'index_1': existing.index_1 if existing else '',
+                'index_2': existing.index_2 if existing else '',
+                'final_concentration': existing.final_concentration if existing else '',
+            })
+
+    return render(request, 'ngs/ngssample_bulk_form.html', {
+        'protocols': Protocol.objects.all(),
+        'protocol': protocol,
+        'rows': rows,
+    })
+
+
+NGSSAMPLE_FIELDS = ['sample', 'protocol', 'operating_name', 'index_1', 'index_2', 'final_concentration', 'bioanalyzer_file']
 
 
 class NgsSampleUpdateView(UpdateView):
     model = NgsSample
     template_name = 'ngs/ngssample_form.html'
-    fields = ['protocol', 'index', 'final_concentration', 'bioanalyzer_file']
+    fields = NGSSAMPLE_FIELDS
     success_url = reverse_lazy('ngs:ngssample-list')
 
 
@@ -187,21 +249,38 @@ class SequencingBatchDetailView(DetailView):
         ctx = super().get_context_data(**kwargs)
         ctx['batch_files'] = self.object.batch_files.all()
         ctx['sequencing_products'] = self.object.sequencing_products.all()
+        ctx['batch_ngs_samples'] = self.object.ngs_samples.all()
         return ctx
 
 
-class SequencingBatchCreateView(CreateView):
-    model = SequencingBatch
-    template_name = 'ngs/sequencingbatch_form.html'
-    fields = ['ngs_sample']
-    success_url = reverse_lazy('ngs:sequencingbatch-list')
+def sequencingbatch_form_view(request, pk=None):
+    """A batch pools together several NGS samples (multiplexed by index) for
+    one sequencing run — a one-to-many relation held as a FK on NgsSample.
+    Only NGS samples with a non-empty index_1 can be added to a batch."""
+    batch = get_object_or_404(SequencingBatch, pk=pk) if pk else None
 
+    available = NgsSample.objects.exclude(index_1='')
+    if batch:
+        available = available | NgsSample.objects.filter(sequencing_batch=batch)
+    available = available.distinct().select_related('sample').order_by('operating_name')
 
-class SequencingBatchUpdateView(UpdateView):
-    model = SequencingBatch
-    template_name = 'ngs/sequencingbatch_form.html'
-    fields = ['ngs_sample']
-    success_url = reverse_lazy('ngs:sequencingbatch-list')
+    if request.method == 'POST':
+        selected_ids = request.POST.getlist('ngs_samples')
+        with transaction.atomic():
+            if batch is None:
+                batch = SequencingBatch.objects.create()
+            NgsSample.objects.filter(sequencing_batch=batch).exclude(pk__in=selected_ids).update(sequencing_batch=None)
+            if selected_ids:
+                NgsSample.objects.filter(pk__in=selected_ids).update(sequencing_batch=batch)
+        messages.success(request, f'Sequencing batch #{batch.pk} saved.')
+        return redirect('ngs:sequencingbatch-detail', pk=batch.pk)
+
+    selected_ids = set(batch.ngs_samples.values_list('pk', flat=True)) if batch else set()
+    return render(request, 'ngs/sequencingbatch_form.html', {
+        'batch': batch,
+        'available_samples': available,
+        'selected_ids': selected_ids,
+    })
 
 
 class SequencingBatchDeleteView(DeleteView):
@@ -290,14 +369,14 @@ class FastqDetailView(DetailView):
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         ctx['fastq_files'] = self.object.fastq_files.all()
-        ctx['manual_runs'] = self.object.manual_runs.all()
+        ctx['manual_run'] = getattr(self.object.sequencing_product, 'manual_run', None)
         return ctx
 
 
 class FastqCreateView(CreateView):
     model = Fastq
     template_name = 'ngs/fastq_form.html'
-    fields = ['sequencing_product']
+    fields = ['sequencing_product', 'ngs_sample']
     success_url = reverse_lazy('ngs:sequencingproduct-list')
 
 
@@ -312,14 +391,37 @@ class FastqDeleteView(DeleteView):
 def fastqfile_upload_view(request):
     """FASTQ file upload page: chunked upload with resume after a network
     interruption, rather than a single HTTP POST (impractical at the scale
-    of files that can reach several tens/hundreds of GB)."""
-    fastq_id = request.GET.get('fastq')
-    selected_fastq = get_object_or_404(Fastq, pk=fastq_id) if fastq_id else None
+    of files that can reach several tens/hundreds of GB).
+
+    The user picks a sequencing product, then an NGS sample from the list
+    restricted to that product's batch (each NGS sample's operating name is
+    conventionally also the uploaded file's name, so files added in bulk can
+    be auto-matched to their NGS sample by filename)."""
+    product_id = request.GET.get('product')
+    selected_product = get_object_or_404(SequencingProduct, pk=product_id) if product_id else None
+    ngs_sample_id = request.GET.get('ngs_sample')
+    selected_ngs_sample = None
+    if ngs_sample_id and selected_product:
+        selected_ngs_sample = NgsSample.objects.filter(
+            pk=ngs_sample_id, sequencing_batch=selected_product.sequencing_batch
+        ).first()
     return render(request, 'ngs/fastqfile_upload.html', {
-        'fastqs': Fastq.objects.all(),
-        'selected_fastq': selected_fastq,
+        'products': SequencingProduct.objects.all(),
+        'selected_product': selected_product,
+        'selected_ngs_sample': selected_ngs_sample,
         'chunk_size': settings.UPLOAD_CHUNK_SIZE,
     })
+
+
+@require_GET
+def sequencingproduct_ngs_samples(request, pk):
+    """NGS samples available for a sequencing product: those belonging to the
+    same sequencing batch — feeds the upload page's dynamic dropdown."""
+    product = get_object_or_404(SequencingProduct, pk=pk)
+    samples = product.sequencing_batch.ngs_samples.all() if product.sequencing_batch else NgsSample.objects.none()
+    return JsonResponse({'ok': True, 'ngs_samples': [
+        {'id': s.pk, 'operating_name': s.operating_name} for s in samples
+    ]})
 
 
 @require_POST
@@ -329,7 +431,13 @@ def chunked_upload_init(request):
     except (json.JSONDecodeError, TypeError):
         return JsonResponse({'ok': False, 'error': "Invalid request."}, status=400)
 
-    fastq = get_object_or_404(Fastq, pk=payload.get('fastq_id'))
+    product = get_object_or_404(SequencingProduct, pk=payload.get('sequencing_product_id'))
+    ngs_sample = None
+    ngs_sample_id = payload.get('ngs_sample_id')
+    if ngs_sample_id:
+        ngs_sample = get_object_or_404(NgsSample, pk=ngs_sample_id)
+    fastq, _ = Fastq.objects.get_or_create(sequencing_product=product, ngs_sample=ngs_sample)
+
     filename = (payload.get('filename') or '').strip()
     total_size = payload.get('total_size')
     if not filename or not isinstance(total_size, int) or total_size <= 0:
@@ -354,7 +462,7 @@ def chunked_upload_init(request):
         upload.comment = payload['comment'].strip()
         upload.save(update_fields=['comment'])
 
-    return JsonResponse({'ok': True, 'upload_id': str(upload.pk), 'offset': upload.offset})
+    return JsonResponse({'ok': True, 'upload_id': str(upload.pk), 'offset': upload.offset, 'fastq_id': fastq.pk})
 
 
 @require_GET
@@ -430,13 +538,21 @@ class ManualRunDetailView(DetailView):
         ctx['scripts'] = self.object.scripts.all()
         ctx['counts'] = self.object.counts.all()
         ctx['analyses'] = self.object.analyses.all()
+        ctx['fastqs'] = self.object.fastqs
         return ctx
 
 
 class ManualRunCreateView(CreateView):
     model = ManualRun
     template_name = 'ngs/manualrun_form.html'
-    fields = ['fastq']
+    fields = ['sequencing_product']
+    success_url = reverse_lazy('ngs:manualrun-list')
+
+
+class ManualRunUpdateView(UpdateView):
+    model = ManualRun
+    template_name = 'ngs/manualrun_form.html'
+    fields = ['sequencing_product']
     success_url = reverse_lazy('ngs:manualrun-list')
 
 
@@ -469,18 +585,38 @@ class ScriptDetailView(DetailView):
         return ctx
 
 
-class ScriptCreateView(CreateView):
-    model = Script
-    template_name = 'ngs/script_form.html'
-    fields = SCRIPT_FIELDS
-    success_url = reverse_lazy('ngs:script-list')
+ScriptForm = forms.modelform_factory(Script, fields=SCRIPT_FIELDS)
+ScriptParameterFormSet = forms.inlineformset_factory(
+    Script, ScriptParameter, fields=['name', 'description'], extra=1, can_delete=True,
+    widgets={
+        'name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'E.g. --input'}),
+        'description': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'What to enter for this parameter'}),
+    },
+)
 
 
-class ScriptUpdateView(UpdateView):
-    model = Script
-    template_name = 'ngs/script_form.html'
-    fields = SCRIPT_FIELDS
-    success_url = reverse_lazy('ngs:script-list')
+def script_form_view(request, pk=None):
+    """Script create/edit, with an inline formset for its 1-n execution
+    parameters (name + description of each argument to enter to run it)."""
+    script = get_object_or_404(Script, pk=pk) if pk else None
+
+    if request.method == 'POST':
+        form = ScriptForm(request.POST, request.FILES, instance=script)
+        formset = ScriptParameterFormSet(request.POST, instance=script)
+        if form.is_valid() and formset.is_valid():
+            with transaction.atomic():
+                script = form.save()
+                formset.instance = script
+                formset.save()
+            messages.success(request, f'Script "{script}" saved.')
+            return redirect('ngs:script-list')
+    else:
+        form = ScriptForm(instance=script)
+        formset = ScriptParameterFormSet(instance=script)
+
+    return render(request, 'ngs/script_form.html', {
+        'form': form, 'formset': formset, 'script': script,
+    })
 
 
 class ScriptDeleteView(DeleteView):
@@ -692,15 +828,23 @@ def pipeline_builder_save(request, pk=None):
     })
 
 
-def pipeline_run_launch(request, fastq_pk):
-    """Choose a pipeline template then launch it on this FASTQ."""
-    fastq = get_object_or_404(Fastq, pk=fastq_pk)
+def pipeline_run_launch(request, fastq_pk=None):
+    """Choose a FASTQ (unless already given) and a pipeline template, then
+    launch it. Reachable either from a FASTQ's detail page (FASTQ pre-set) or
+    from the pipeline-runs list page (FASTQ picked from a dropdown)."""
+    fastq = get_object_or_404(Fastq, pk=fastq_pk) if fastq_pk else None
     templates = PipelineTemplate.objects.all()
+    fastqs = Fastq.objects.select_related('sequencing_product', 'ngs_sample').all() if fastq is None else None
 
     if request.method == 'POST':
+        if fastq is None:
+            fastq_id = request.POST.get('fastq', '')
+            fastq = Fastq.objects.filter(pk=fastq_id).first() if fastq_id.isdigit() else None
         template_id = request.POST.get('template', '')
         template = templates.filter(pk=template_id).first() if template_id.isdigit() else None
-        if template is None:
+        if fastq is None:
+            messages.error(request, "Please choose a valid FASTQ.")
+        elif template is None:
             messages.error(request, "Please choose a valid pipeline template.")
         elif not template.steps.exists():
             messages.error(request, "This pipeline template has no steps.")
@@ -714,7 +858,9 @@ def pipeline_run_launch(request, fastq_pk):
             messages.success(request, f'Pipeline "{template.name}" launched.')
             return redirect('ngs:pipelinerun-detail', pk=run.pk)
 
-    return render(request, 'ngs/pipelinerun_launch.html', {'fastq': fastq, 'templates': templates})
+    return render(request, 'ngs/pipelinerun_launch.html', {
+        'fastq': fastq, 'templates': templates, 'fastqs': fastqs,
+    })
 
 
 class PipelineRunListView(ListView):
@@ -731,10 +877,30 @@ class PipelineRunDetailView(DetailView):
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
-        ctx['step_runs'] = (
+        step_runs = list(
             self.object.step_runs
             .select_related('step')
             .prefetch_related('step__depends_on', 'artifacts')
             .all()
         )
+        for sr in step_runs:
+            sr.report_items = None
+            sr.report_raw = None
+            sr.report_error = None
+            all_artifacts = list(sr.artifacts.all())
+            sr.output_artifacts = [a for a in all_artifacts if a.kind == StepArtifact.Kind.OUTPUT]
+            report_artifact = next(
+                (a for a in all_artifacts if a.kind == StepArtifact.Kind.REPORT), None
+            )
+            if report_artifact and report_artifact.file:
+                try:
+                    with report_artifact.file.open('rb') as f:
+                        data = json.loads(f.read().decode('utf-8'))
+                    if isinstance(data, dict):
+                        sr.report_items = data.items()
+                    else:
+                        sr.report_raw = json.dumps(data, indent=2)
+                except (OSError, ValueError):
+                    sr.report_error = "Could not read report.json (invalid JSON or missing file)."
+        ctx['step_runs'] = step_runs
         return ctx

@@ -12,12 +12,13 @@
 </p>
 {% endblock %}
 {% block table_head %}
-  <th>#</th><th>FASTQ</th><th class="text-end">Actions</th>
+  <th>#</th><th>Sequencing product</th><th class="text-end">Actions</th>
 {% endblock %}
 {% block table_row %}
   <td><a href="{% url 'ngs:manualrun-detail' object.pk %}">Manual run #{{ object.pk }}</a></td>
-  <td><a href="{% url 'ngs:fastq-detail' object.fastq_id %}">{{ object.fastq }}</a></td>
+  <td><a href="{% url 'ngs:sequencingproduct-detail' object.sequencing_product_id %}">{{ object.sequencing_product }}</a></td>
   <td class="text-end">
+    <a href="{% url 'ngs:manualrun-update' object.pk %}" class="btn btn-outline-secondary btn-sm">Edit</a>
     <a href="{% url 'ngs:manualrun-delete' object.pk %}" class="btn btn-outline-danger btn-sm">Delete</a>
   </td>
 {% endblock %}

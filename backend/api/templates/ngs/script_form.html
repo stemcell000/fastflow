@@ -1,2 +1,96 @@
-{% extends "ngs/_form_base.html" %}
-{% block form_title %}Script{% endblock %}
+{% extends "base.html" %}
+{% load crispy_forms_tags %}
+{% block page_title %}Script{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-12 col-lg-8 col-xl-6">
+    <div class="ff-page-header">
+      <h1>{{ script|yesno:"Edit,Add" }} — Script</h1>
+    </div>
+    <form method="post" enctype="multipart/form-data" novalidate>
+      {% csrf_token %}
+      <div class="card mb-4">
+        <div class="card-body p-4">
+          {{ form|crispy }}
+        </div>
+      </div>
+
+      <div class="card mb-4">
+        <div class="card-header">Parameters to enter to execute this script</div>
+        <div class="card-body p-0">
+          {{ formset.management_form }}
+          <table class="table align-middle mb-0" id="param-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Description</th>
+                <th style="width: 60px;"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for pform in formset.forms %}
+              <tr class="param-row">
+                <td>
+                  {{ pform.id }}
+                  {{ pform.name }}
+                </td>
+                <td>{{ pform.description }}</td>
+                <td class="text-center">
+                  {% if pform.instance.pk %}
+                  <div class="form-check">
+                    {{ pform.DELETE }}
+                  </div>
+                  {% else %}
+                  <button type="button" class="btn btn-outline-danger btn-sm remove-row">&times;</button>
+                  {% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+          <div class="p-3">
+            <button type="button" id="add-param-row" class="btn btn-outline-dark btn-sm">+ Add a parameter</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="d-flex gap-2 mt-2">
+        <button type="submit" class="btn btn-primary">Save</button>
+        <a href="{% url 'ngs:script-list' %}" class="btn btn-outline-secondary">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<template id="empty-param-row">
+  <td>{{ formset.empty_form.name }}</td>
+  <td>{{ formset.empty_form.description }}</td>
+  <td class="text-center"><button type="button" class="btn btn-outline-danger btn-sm remove-row">&times;</button></td>
+</template>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+(function () {
+  const totalFormsInput = document.querySelector('#id_parameters-TOTAL_FORMS');
+  const table = document.querySelector('#param-table tbody');
+  const emptyRowHtml = document.getElementById('empty-param-row').innerHTML;
+
+  document.getElementById('add-param-row').addEventListener('click', function () {
+    const formIndex = parseInt(totalFormsInput.value, 10);
+    const html = emptyRowHtml.replace(/__prefix__/g, formIndex);
+    const tr = document.createElement('tr');
+    tr.className = 'param-row';
+    tr.innerHTML = html;
+    table.appendChild(tr);
+    totalFormsInput.value = formIndex + 1;
+  });
+
+  table.addEventListener('click', function (e) {
+    if (!e.target.classList.contains('remove-row')) return;
+    e.target.closest('tr').remove();
+  });
+})();
+</script>
+{% endblock %}

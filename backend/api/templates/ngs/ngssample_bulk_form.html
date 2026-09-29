@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block page_title %}NGS Samples{% endblock %}
+
+{% block content %}
+<div class="ff-page-header">
+  <h1>Add / edit NGS samples</h1>
+</div>
+
+<div class="card mb-4">
+  <div class="card-body p-4">
+    <form method="get" class="row g-2 align-items-end">
+      <div class="col-12 col-md-8">
+        <label class="form-label">Protocol</label>
+        <select name="protocol" class="form-select" required>
+          <option value="" {% if not protocol %}selected disabled{% endif %}>— Choose a protocol —</option>
+          {% for p in protocols %}
+          <option value="{{ p.pk }}" {% if protocol.pk == p.pk %}selected{% endif %}>
+            #{{ p.pk }} — {{ p.primer_pair|default:"—" }} ({{ p.samples.count }} sample{{ p.samples.count|pluralize }})
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-12 col-md-4">
+        <button type="submit" class="btn btn-outline-dark w-100">Load samples</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% if protocol %}
+  {% if rows %}
+  <form method="post">
+    {% csrf_token %}
+    <input type="hidden" name="protocol" value="{{ protocol.pk }}">
+    <div class="card">
+      <div class="card-header">
+        Protocol #{{ protocol.pk }} — {{ protocol.primer_pair|default:"—" }} ({{ rows|length }} sample{{ rows|length|pluralize }})
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table align-middle mb-0">
+            <thead>
+              <tr>
+                <th>Sample</th>
+                <th>Operating name *</th>
+                <th>Index 1</th>
+                <th>Index 2</th>
+                <th>Final concentration</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in rows %}
+              <tr>
+                <td><a href="{% url 'ngs:sample-detail' row.sample.pk %}" target="_blank" rel="noopener">{{ row.sample.name }}</a></td>
+                <td><input type="text" class="form-control" name="sample_{{ row.sample.pk }}_operating_name" value="{{ row.operating_name }}" required></td>
+                <td><input type="text" class="form-control" name="sample_{{ row.sample.pk }}_index_1" value="{{ row.index_1 }}"></td>
+                <td><input type="text" class="form-control" name="sample_{{ row.sample.pk }}_index_2" value="{{ row.index_2 }}"></td>
+                <td><input type="number" step="any" class="form-control" name="sample_{{ row.sample.pk }}_final_concentration" value="{{ row.final_concentration }}"></td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <div class="d-flex gap-2 mt-3">
+      <button type="submit" class="btn btn-primary">Save NGS samples</button>
+      <a href="{% url 'ngs:ngssample-list' %}" class="btn btn-outline-secondary">Cancel</a>
+    </div>
+  </form>
+  {% else %}
+  <p class="ff-empty">
+    Protocol #{{ protocol.pk }} has no associated samples yet —
+    <a href="{% url 'ngs:protocol-update' protocol.pk %}">add some to the protocol first</a>.
+  </p>
+  {% endif %}
+{% endif %}
+{% endblock %}

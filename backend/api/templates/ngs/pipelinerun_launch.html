@@ -4,13 +4,35 @@
 <div class="row justify-content-center">
   <div class="col-12 col-lg-6">
     <div class="ff-page-header">
-      <h1>Launch a pipeline — FASTQ #{{ fastq.pk }}</h1>
+      <h1>Launch a pipeline{% if fastq %} — FASTQ #{{ fastq.pk }}{% endif %}</h1>
     </div>
     <div class="card">
       <div class="card-body p-4">
         {% if templates %}
         <form method="post">
           {% csrf_token %}
+          {% if fastq %}
+          <input type="hidden" name="fastq" value="{{ fastq.pk }}">
+          <div class="mb-3">
+            <label class="form-label">FASTQ</label>
+            <input type="text" class="form-control" value="FASTQ #{{ fastq.pk }}{% if fastq.ngs_sample %} — {{ fastq.ngs_sample.operating_name }}{% endif %}" disabled>
+          </div>
+          {% else %}
+          <div class="mb-3">
+            <label for="fastq" class="form-label">FASTQ to process</label>
+            <select name="fastq" id="fastq" class="form-select" required>
+              <option value="" selected disabled>— Choose —</option>
+              {% for f in fastqs %}
+              <option value="{{ f.pk }}">
+                FASTQ #{{ f.pk }} — {{ f.sequencing_product }}{% if f.ngs_sample %} — {{ f.ngs_sample.operating_name }}{% endif %}
+              </option>
+              {% endfor %}
+            </select>
+            {% if not fastqs %}
+            <div class="form-text text-danger">No FASTQ available — upload one first.</div>
+            {% endif %}
+          </div>
+          {% endif %}
           <div class="mb-3">
             <label for="template" class="form-label">Pipeline template</label>
             <select name="template" id="template" class="form-select" required>
@@ -22,13 +44,13 @@
           </div>
           <div class="d-flex gap-2">
             <button type="submit" class="btn btn-primary">Launch</button>
-            <a href="{% url 'ngs:fastq-detail' fastq.pk %}" class="btn btn-outline-secondary">Cancel</a>
+            <a href="{% if fastq %}{% url 'ngs:fastq-detail' fastq.pk %}{% else %}{% url 'ngs:pipelinerun-list' %}{% endif %}" class="btn btn-outline-secondary">Cancel</a>
           </div>
         </form>
         {% else %}
         <p class="ff-empty mb-0">
           No pipeline templates available. Create one from
-          <a href="/admin/api/pipelinetemplate/add/">the admin</a>.
+          <a href="{% url 'ngs:pipelinetemplate-builder-new' %}">the visual editor</a>.
         </p>
         {% endif %}
       </div>

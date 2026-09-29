@@ -1,6 +1,9 @@
 {% extends "ngs/_list_base.html" %}
 {% block page_title %}Pipeline runs{% endblock %}
 {% block list_title %}Pipeline runs{% endblock %}
+{% block list_actions %}
+  <a href="{% url 'ngs:pipelinerun-launch-generic' %}" class="btn btn-primary btn-sm">▶ Launch a pipeline</a>
+{% endblock %}
 {% block table_head %}
   <th>#</th><th>Template</th><th>FASTQ</th><th>Status</th><th>Launched</th><th>Finished</th>
 {% endblock %}
@@ -17,4 +20,4 @@
   <td>{{ object.started_at|date:"d/m/Y H:i"|default:"—" }}</td>
   <td>{{ object.finished_at|date:"d/m/Y H:i"|default:"—" }}</td>
 {% endblock %}
-{% block empty_message %}No pipeline runs yet.{% endblock %}
+{% block empty_message %}No pipeline runs yet. <a href="{% url 'ngs:pipelinerun-launch-generic' %}">Launch one</a>.{% endblock %}

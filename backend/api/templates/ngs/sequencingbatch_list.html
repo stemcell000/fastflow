@@ -5,11 +5,12 @@
   <a href="{% url 'ngs:sequencingbatch-create' %}" class="btn btn-primary btn-sm">+ Add a batch</a>
 {% endblock %}
 {% block table_head %}
-  <th>#</th><th>NGS Sample</th><th class="text-end">Actions</th>
+  <th>#</th><th>NGS samples</th><th>Created</th><th class="text-end">Actions</th>
 {% endblock %}
 {% block table_row %}
   <td><a href="{% url 'ngs:sequencingbatch-detail' object.pk %}">Batch #{{ object.pk }}</a></td>
-  <td><a href="{% url 'ngs:ngssample-detail' object.ngs_sample_id %}">{{ object.ngs_sample }}</a></td>
+  <td>{{ object.ngs_samples.count }} sample{{ object.ngs_samples.count|pluralize }}</td>
+  <td>{{ object.created_at|date:"d/m/Y H:i" }}</td>
   <td class="text-end">
     <a href="{% url 'ngs:sequencingbatch-update' object.pk %}" class="btn btn-outline-secondary btn-sm">Edit</a>
     <a href="{% url 'ngs:sequencingbatch-delete' object.pk %}" class="btn btn-outline-danger btn-sm">Delete</a>

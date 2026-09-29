@@ -160,14 +160,18 @@ def _prepare_workspace(step_run):
     return host_root, container_root
 
 
+REPORT_FILENAME = 'report.json'
+
+
 def _collect_outputs(step_run, container_root):
     out_dir = container_root / 'out'
     for path in sorted(out_dir.glob('**/*')):
         if path.is_file():
             relative = path.relative_to(settings.MEDIA_ROOT)
+            kind = StepArtifact.Kind.REPORT if path.name.lower() == REPORT_FILENAME else StepArtifact.Kind.OUTPUT
             StepArtifact.objects.create(
                 step_run=step_run,
-                kind=StepArtifact.Kind.OUTPUT,
+                kind=kind,
                 label=path.name,
                 file=str(relative),
             )

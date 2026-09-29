@@ -2,19 +2,22 @@
 {% block page_title %}NGS Samples{% endblock %}
 {% block list_title %}NGS Samples{% endblock %}
 {% block list_actions %}
-  <a href="{% url 'ngs:ngssample-create' %}" class="btn btn-primary btn-sm">+ Add a NGS sample</a>
+  <a href="{% url 'ngs:ngssample-create' %}" class="btn btn-primary btn-sm">+ Add NGS samples</a>
 {% endblock %}
 {% block table_head %}
-  <th>#</th><th>Index</th><th>Protocol</th><th>Final concentration</th><th class="text-end">Actions</th>
+  <th>Operating name</th><th>Sample</th><th>Index 1</th><th>Index 2</th><th>Protocol</th><th>Final concentration</th><th>Batch</th><th class="text-end">Actions</th>
 {% endblock %}
 {% block table_row %}
-  <td><a href="{% url 'ngs:ngssample-detail' object.pk %}">#{{ object.pk }}</a></td>
-  <td>{{ object.index|default:"—" }}</td>
+  <td><a href="{% url 'ngs:ngssample-detail' object.pk %}">{{ object.operating_name }}</a></td>
+  <td><a href="{% url 'ngs:sample-detail' object.sample_id %}">{{ object.sample }}</a></td>
+  <td>{{ object.index_1|default:"—" }}</td>
+  <td>{{ object.index_2|default:"—" }}</td>
   <td><a href="{% url 'ngs:protocol-detail' object.protocol_id %}">{{ object.protocol }}</a></td>
   <td>{{ object.final_concentration|default:"—" }}</td>
+  <td>{% if object.sequencing_batch %}<a href="{% url 'ngs:sequencingbatch-detail' object.sequencing_batch_id %}">Batch #{{ object.sequencing_batch_id }}</a>{% else %}—{% endif %}</td>
   <td class="text-end">
     <a href="{% url 'ngs:ngssample-update' object.pk %}" class="btn btn-outline-secondary btn-sm">Edit</a>
     <a href="{% url 'ngs:ngssample-delete' object.pk %}" class="btn btn-outline-danger btn-sm">Delete</a>
   </td>
 {% endblock %}
-{% block empty_message %}No NGS samples recorded yet. <a href="{% url 'ngs:ngssample-create' %}">Add the first one</a>.{% endblock %}
+{% block empty_message %}No NGS samples recorded yet. <a href="{% url 'ngs:ngssample-create' %}">Add some</a>.{% endblock %}

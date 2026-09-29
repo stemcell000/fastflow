@@ -9,12 +9,16 @@
 {% block info_body %}
   <dt class="col-sm-3">Sequencing product</dt>
   <dd class="col-sm-9"><a href="{% url 'ngs:sequencingproduct-detail' object.sequencing_product_id %}">{{ object.sequencing_product }}</a></dd>
+  <dt class="col-sm-3">NGS sample</dt>
+  <dd class="col-sm-9">
+    {% if object.ngs_sample %}<a href="{% url 'ngs:ngssample-detail' object.ngs_sample_id %}">{{ object.ngs_sample.operating_name }}</a>{% else %}—{% endif %}
+  </dd>
 {% endblock %}
 {% block related_sections %}
 <div class="card mb-4">
   <div class="card-header d-flex justify-content-between align-items-center">
     FASTQ files
-    <a href="{% url 'ngs:fastqfile-create' %}?fastq={{ object.pk }}" class="btn btn-sm btn-primary">+ Add a file</a>
+    <a href="{% url 'ngs:fastqfile-create' %}?product={{ object.sequencing_product_id }}{% if object.ngs_sample_id %}&ngs_sample={{ object.ngs_sample_id }}{% endif %}" class="btn btn-sm btn-primary">+ Add a file</a>
   </div>
   <div class="card-body p-0">
     {% if fastq_files %}
@@ -71,27 +75,18 @@
 </div>
 
 <div class="card">
-  <div class="card-header d-flex justify-content-between align-items-center">
-    Manual tracking
-    <a href="{% url 'ngs:manualrun-create' %}" class="btn btn-sm btn-primary">+ Add a manual run</a>
-  </div>
-  <div class="card-body p-0">
-    {% if manual_runs %}
-    <table class="table table-hover align-middle mb-0">
-      <thead><tr><th>#</th><th class="text-end">Actions</th></tr></thead>
-      <tbody>
-        {% for mr in manual_runs %}
-        <tr>
-          <td><a href="{% url 'ngs:manualrun-detail' mr.pk %}">Manual run #{{ mr.pk }}</a></td>
-          <td class="text-end">
-            <a href="{% url 'ngs:manualrun-delete' mr.pk %}" class="btn btn-outline-danger btn-sm">Delete</a>
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+  <div class="card-header">Manual tracking</div>
+  <div class="card-body">
+    {% if manual_run %}
+    <p class="mb-0">
+      This FASTQ's sequencing product is followed by
+      <a href="{% url 'ngs:manualrun-detail' manual_run.pk %}">Manual run #{{ manual_run.pk }}</a>.
+    </p>
     {% else %}
-    <p class="ff-empty mb-0">No manual runs for this FASTQ.</p>
+    <p class="ff-empty mb-0">
+      No manual run for this sequencing product yet —
+      <a href="{% url 'ngs:manualrun-create' %}">add one</a>.
+    </p>
     {% endif %}
   </div>
 </div>

@@ -1,2 +1,56 @@
-{% extends "ngs/_form_base.html" %}
-{% block form_title %}Sequencing batch{% endblock %}
+{% extends "base.html" %}
+{% block page_title %}Sequencing batch{% endblock %}
+
+{% block content %}
+<div class="ff-page-header">
+  <h1>{% if batch %}Edit sequencing batch #{{ batch.pk }}{% else %}New sequencing batch{% endif %}</h1>
+</div>
+
+<p class="text-muted small">
+  A sequencing batch pools together several NGS samples (multiplexed by index) for a single
+  sequencing run. Only NGS samples with an Index 1 already set can be added here.
+</p>
+
+<form method="post">
+  {% csrf_token %}
+  <div class="card">
+    <div class="card-header">NGS samples in this batch</div>
+    <div class="card-body p-0">
+      {% if available_samples %}
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead>
+            <tr>
+              <th style="width: 40px;"></th>
+              <th>Operating name</th>
+              <th>Sample</th>
+              <th>Index 1</th>
+              <th>Index 2</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for s in available_samples %}
+            <tr>
+              <td><input type="checkbox" class="form-check-input" name="ngs_samples" value="{{ s.pk }}" {% if s.pk in selected_ids %}checked{% endif %}></td>
+              <td>{{ s.operating_name }}</td>
+              <td>{{ s.sample.name }}</td>
+              <td>{{ s.index_1 }}</td>
+              <td>{{ s.index_2|default:"—" }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <p class="ff-empty mb-0">
+        No NGS sample has an Index 1 set yet — <a href="{% url 'ngs:ngssample-list' %}">add indexes to NGS samples first</a>.
+      </p>
+      {% endif %}
+    </div>
+  </div>
+  <div class="d-flex gap-2 mt-3">
+    <button type="submit" class="btn btn-primary">Save</button>
+    <a href="{% url 'ngs:sequencingbatch-list' %}" class="btn btn-outline-secondary">Cancel</a>
+  </div>
+</form>
+{% endblock %}

@@ -28,15 +28,15 @@ urlpatterns = [
     # NGS Samples
     path('ngs-samples/', _v(views.NgsSampleListView), name='ngssample-list'),
     path('ngs-samples/<int:pk>/', _v(views.NgsSampleDetailView), name='ngssample-detail'),
-    path('ngs-samples/new/', _v(views.NgsSampleCreateView), name='ngssample-create'),
+    path('ngs-samples/new/', login_required(views.ngssample_bulk_view), name='ngssample-create'),
     path('ngs-samples/<int:pk>/edit/', _v(views.NgsSampleUpdateView), name='ngssample-update'),
     path('ngs-samples/<int:pk>/delete/', _v(views.NgsSampleDeleteView), name='ngssample-delete'),
 
     # Sequencing Batches
     path('batches/', _v(views.SequencingBatchListView), name='sequencingbatch-list'),
     path('batches/<int:pk>/', _v(views.SequencingBatchDetailView), name='sequencingbatch-detail'),
-    path('batches/new/', _v(views.SequencingBatchCreateView), name='sequencingbatch-create'),
-    path('batches/<int:pk>/edit/', _v(views.SequencingBatchUpdateView), name='sequencingbatch-update'),
+    path('batches/new/', login_required(views.sequencingbatch_form_view), name='sequencingbatch-create'),
+    path('batches/<int:pk>/edit/', login_required(views.sequencingbatch_form_view), name='sequencingbatch-update'),
     path('batches/<int:pk>/delete/', _v(views.SequencingBatchDeleteView), name='sequencingbatch-delete'),
 
     # Sequencing Batch Files
@@ -59,6 +59,7 @@ urlpatterns = [
     # FASTQ Files
     path('fastq-files/new/', login_required(views.fastqfile_upload_view), name='fastqfile-create'),
     path('fastq-files/<int:pk>/delete/', _v(views.FastqFileDeleteView), name='fastqfile-delete'),
+    path('products/<int:pk>/ngs-samples/', login_required(views.sequencingproduct_ngs_samples), name='sequencingproduct-ngssamples'),
     path('uploads/init/', login_required(views.chunked_upload_init), name='chunkedupload-init'),
     path('uploads/<uuid:upload_id>/status/', login_required(views.chunked_upload_status), name='chunkedupload-status'),
     path('uploads/<uuid:upload_id>/chunk/', login_required(views.chunked_upload_chunk), name='chunkedupload-chunk'),
@@ -67,13 +68,14 @@ urlpatterns = [
     path('manual-runs/', _v(views.ManualRunListView), name='manualrun-list'),
     path('manual-runs/<int:pk>/', _v(views.ManualRunDetailView), name='manualrun-detail'),
     path('manual-runs/new/', _v(views.ManualRunCreateView), name='manualrun-create'),
+    path('manual-runs/<int:pk>/edit/', _v(views.ManualRunUpdateView), name='manualrun-update'),
     path('manual-runs/<int:pk>/delete/', _v(views.ManualRunDeleteView), name='manualrun-delete'),
 
     # Scripts (standalone registry, independent of any pipeline or manual run)
     path('scripts/', _v(views.ScriptListView), name='script-list'),
     path('scripts/<int:pk>/', _v(views.ScriptDetailView), name='script-detail'),
-    path('scripts/new/', _v(views.ScriptCreateView), name='script-create'),
-    path('scripts/<int:pk>/edit/', _v(views.ScriptUpdateView), name='script-update'),
+    path('scripts/new/', login_required(views.script_form_view), name='script-create'),
+    path('scripts/<int:pk>/edit/', login_required(views.script_form_view), name='script-update'),
     path('scripts/<int:pk>/delete/', _v(views.ScriptDeleteView), name='script-delete'),
 
     # Settings
@@ -100,6 +102,7 @@ urlpatterns = [
     path('pipeline-templates/<int:pk>/builder/save/', login_required(views.pipeline_builder_save), name='pipelinetemplate-builder-save'),
     path('scripts/quick-create/', login_required(views.script_quick_create), name='script-quick-create'),
     path('fastq/<int:fastq_pk>/run/', login_required(views.pipeline_run_launch), name='pipelinerun-launch'),
+    path('pipeline-runs/launch/', login_required(views.pipeline_run_launch), name='pipelinerun-launch-generic'),
     path('pipeline-runs/', _v(views.PipelineRunListView), name='pipelinerun-list'),
     path('pipeline-runs/<int:pk>/', _v(views.PipelineRunDetailView), name='pipelinerun-detail'),
 ]

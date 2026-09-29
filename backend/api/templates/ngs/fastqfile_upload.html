@@ -1,15 +1,18 @@
 {% extends "base.html" %}
-{% block page_title %}Upload a FASTQ file{% endblock %}
+{% block page_title %}Upload FASTQ files{% endblock %}
 
 {% block content %}
 <div class="row justify-content-center">
-  <div class="col-12 col-lg-7">
+  <div class="col-12 col-lg-8">
     <div class="ff-page-header">
-      <h1>Upload a FASTQ file</h1>
+      <h1>Upload FASTQ files</h1>
     </div>
     <p class="text-muted small">
-      Large files (up to ~200 GB) are sent in chunks: if the network drops,
-      reselect the same file and click "Upload" again — the transfer will resume where it left off.
+      Large files (up to ~200 GB) are sent in chunks: if the network drops, reselect the same
+      file(s) and click "Upload" again — the transfer will resume where it left off. By convention,
+      an uploaded file's name matches the NGS sample's operating name, so when several files are
+      selected at once the matching NGS sample is guessed automatically from the file name —
+      double check and adjust each row before uploading.
     </p>
 
     {% csrf_token %}
@@ -17,24 +20,30 @@
     <div class="card">
       <div class="card-body p-4">
         <div class="mb-3">
-          <label class="form-label">FASTQ</label>
-          <select id="ff-fastq" class="form-select" required {% if selected_fastq %}disabled{% endif %}>
-            <option value="" disabled {% if not selected_fastq %}selected{% endif %}>— Choose —</option>
-            {% for f in fastqs %}
-            <option value="{{ f.pk }}" {% if selected_fastq.pk == f.pk %}selected{% endif %}>FASTQ #{{ f.pk }} ({{ f.sequencing_product }})</option>
+          <label class="form-label">Sequencing product</label>
+          <select id="ff-product" class="form-select" required>
+            <option value="" disabled {% if not selected_product %}selected{% endif %}>— Choose —</option>
+            {% for p in products %}
+            <option value="{{ p.pk }}" {% if selected_product.pk == p.pk %}selected{% endif %}>
+              Product #{{ p.pk }} — {{ p.sequencing_machine|default:"—" }} ({{ p.date|default:"—" }})
+            </option>
             {% endfor %}
           </select>
-          {% if selected_fastq %}
-          <input type="hidden" id="ff-fastq-hidden" value="{{ selected_fastq.pk }}">
-          {% endif %}
         </div>
         <div class="mb-3">
           <label class="form-label">Comment</label>
           <textarea id="ff-comment" class="form-control" rows="2" placeholder="E.g.: NovaSeq run 03/12, batch A"></textarea>
         </div>
         <div class="mb-3">
-          <label class="form-label">File</label>
-          <input type="file" id="ff-file" class="form-control">
+          <label class="form-label">File(s)</label>
+          <input type="file" id="ff-file" class="form-control" multiple>
+        </div>
+
+        <div id="ff-files-wrap" class="mb-3" hidden>
+          <table class="table align-middle mb-0">
+            <thead><tr><th>File</th><th>NGS sample</th><th style="width: 160px;">Status</th></tr></thead>
+            <tbody id="ff-files-body"></tbody>
+          </table>
         </div>
 
         <div id="ff-progress-wrap" class="mb-3" hidden>
@@ -48,7 +57,7 @@
 
         <div class="d-flex gap-2">
           <button type="button" id="ff-upload-btn" class="btn btn-primary">Upload</button>
-          <a href="{% if selected_fastq %}{% url 'ngs:fastq-detail' selected_fastq.pk %}{% else %}{% url 'ngs:sequencingproduct-list' %}{% endif %}" class="btn btn-outline-secondary">Cancel</a>
+          <a href="{% if selected_product %}{% url 'ngs:sequencingproduct-detail' selected_product.pk %}{% else %}{% url 'ngs:sequencingproduct-list' %}{% endif %}" class="btn btn-outline-secondary">Cancel</a>
         </div>
       </div>
     </div>
@@ -61,6 +70,11 @@
 (function () {
   const CHUNK_SIZE = {{ chunk_size }};
   const INIT_URL = "{% url 'ngs:chunkedupload-init' %}";
+  const NGS_SAMPLES_URL_TEMPLATE = "{% url 'ngs:sequencingproduct-ngssamples' 0 %}".replace('/0/', '/__id__/');
+  const PRESELECTED_NGS_SAMPLE_ID = {% if selected_ngs_sample %}{{ selected_ngs_sample.pk }}{% else %}null{% endif %};
+
+  let ngsSamples = [];
+  let selectedFiles = [];
 
   function csrfToken() {
     return document.querySelector('input[name=csrfmiddlewaretoken]').value;
@@ -75,20 +89,74 @@
       ? '<div class="alert alert-' + kind + '">' + message + '</div>' : '';
   }
 
-  function setProgress(offset, total) {
-    const pct = total ? Math.floor((offset / total) * 100) : 0;
+  function setProgress(fileIndex, total, offset, size) {
+    const pct = size ? Math.floor((offset / size) * 100) : 0;
     document.getElementById('ff-progress-wrap').hidden = false;
     document.getElementById('ff-progress-bar').style.width = pct + '%';
     document.getElementById('ff-progress-bar').textContent = pct + '%';
     document.getElementById('ff-progress-text').textContent =
-      (offset / (1024 * 1024)).toFixed(1) + ' MB / ' + (total / (1024 * 1024)).toFixed(1) + ' MB';
+      'File ' + (fileIndex + 1) + '/' + total + ' — ' +
+      (offset / (1024 * 1024)).toFixed(1) + ' MB / ' + (size / (1024 * 1024)).toFixed(1) + ' MB';
   }
 
-  async function initUpload(fastqId, filename, totalSize, comment) {
+  function guessNgsSample(filename) {
+    const lower = filename.toLowerCase();
+    const matches = ngsSamples.filter((s) => lower.includes(s.operating_name.toLowerCase()));
+    return matches.length === 1 ? matches[0].id : (PRESELECTED_NGS_SAMPLE_ID || '');
+  }
+
+  function sampleOptionsHtml(selectedId) {
+    let html = '<option value="">— None —</option>';
+    ngsSamples.forEach((s) => {
+      html += '<option value="' + s.id + '"' + (String(s.id) === String(selectedId) ? ' selected' : '') + '>' + s.operating_name + '</option>';
+    });
+    return html;
+  }
+
+  function renderFileRows() {
+    const body = document.getElementById('ff-files-body');
+    body.innerHTML = '';
+    selectedFiles.forEach((entry, i) => {
+      const tr = document.createElement('tr');
+      tr.dataset.index = i;
+      tr.innerHTML =
+        '<td>' + entry.file.name + '</td>' +
+        '<td><select class="form-select form-select-sm ff-ngs-select">' + sampleOptionsHtml(entry.ngsSampleId) + '</select></td>' +
+        '<td class="ff-status text-muted small">Pending</td>';
+      tr.querySelector('.ff-ngs-select').addEventListener('change', function () {
+        entry.ngsSampleId = this.value;
+      });
+      body.appendChild(tr);
+    });
+    document.getElementById('ff-files-wrap').hidden = selectedFiles.length === 0;
+  }
+
+  async function loadNgsSamples(productId) {
+    if (!productId) { ngsSamples = []; return; }
+    const resp = await fetch(NGS_SAMPLES_URL_TEMPLATE.replace('__id__', productId));
+    const data = await resp.json();
+    ngsSamples = data.ok ? data.ngs_samples : [];
+  }
+
+  document.getElementById('ff-product').addEventListener('change', async function () {
+    await loadNgsSamples(this.value);
+    selectedFiles.forEach((entry) => { entry.ngsSampleId = guessNgsSample(entry.file.name); });
+    renderFileRows();
+  });
+
+  document.getElementById('ff-file').addEventListener('change', function () {
+    selectedFiles = Array.from(this.files).map((file) => ({ file: file, ngsSampleId: guessNgsSample(file.name) }));
+    renderFileRows();
+  });
+
+  async function initUpload(productId, ngsSampleId, filename, totalSize, comment) {
     const resp = await fetch(INIT_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken() },
-      body: JSON.stringify({ fastq_id: fastqId, filename: filename, total_size: totalSize, comment: comment }),
+      body: JSON.stringify({
+        sequencing_product_id: productId, ngs_sample_id: ngsSampleId || null,
+        filename: filename, total_size: totalSize, comment: comment,
+      }),
     });
     const data = await resp.json();
     if (!data.ok) throw new Error(data.error || "Initialization failed.");
@@ -113,7 +181,7 @@
     return data;
   }
 
-  async function uploadWithRetry(uploadId, offset, file) {
+  async function uploadWithRetry(uploadId, offset, file, fileIndex, total) {
     let attempts = 0;
     while (offset < file.size) {
       const blob = file.slice(offset, Math.min(offset + CHUNK_SIZE, file.size));
@@ -125,7 +193,7 @@
         }
         offset = result.offset;
         attempts = 0;
-        setProgress(offset, file.size);
+        setProgress(fileIndex, total, offset, file.size);
         if (result.completed) return;
       } catch (err) {
         attempts += 1;
@@ -137,32 +205,40 @@
   }
 
   document.getElementById('ff-upload-btn').addEventListener('click', async function () {
-    const fastqSelect = document.getElementById('ff-fastq');
-    const fastqHidden = document.getElementById('ff-fastq-hidden');
-    const fastqId = fastqHidden ? fastqHidden.value : fastqSelect.value;
-    const fileInput = document.getElementById('ff-file');
+    const productId = document.getElementById('ff-product').value;
     const comment = document.getElementById('ff-comment').value;
-    const file = fileInput.files[0];
 
     setAlert('', null);
-    if (!fastqId) { setAlert('Please choose a FASTQ.', 'danger'); return; }
-    if (!file) { setAlert('Please choose a file.', 'danger'); return; }
+    if (!productId) { setAlert('Please choose a sequencing product.', 'danger'); return; }
+    if (!selectedFiles.length) { setAlert('Please choose at least one file.', 'danger'); return; }
 
     this.disabled = true;
     this.textContent = 'Uploading…';
 
+    const rows = document.querySelectorAll('#ff-files-body tr');
+    let lastFastqId = null;
     try {
-      const init = await initUpload(fastqId, file.name, file.size, comment);
-      setProgress(init.offset, file.size);
-      await uploadWithRetry(init.upload_id, init.offset, file);
+      for (let i = 0; i < selectedFiles.length; i++) {
+        const entry = selectedFiles[i];
+        rows[i].querySelector('.ff-status').textContent = 'Uploading…';
+        const init = await initUpload(productId, entry.ngsSampleId, entry.file.name, entry.file.size, comment);
+        lastFastqId = init.fastq_id;
+        setProgress(i, selectedFiles.length, init.offset, entry.file.size);
+        await uploadWithRetry(init.upload_id, init.offset, entry.file, i, selectedFiles.length);
+        rows[i].querySelector('.ff-status').innerHTML = '<span class="text-success">Done</span>';
+      }
       setAlert('Upload complete.', 'success');
-      window.location.href = "{% url 'ngs:fastq-detail' 0 %}".replace('/0/', '/' + fastqId + '/');
+      window.location.href = "{% url 'ngs:fastq-detail' 0 %}".replace('/0/', '/' + lastFastqId + '/');
     } catch (err) {
-      setAlert("Upload failed: " + err.message + " — reselect the same file and click \"Upload\" again to resume.", 'danger');
+      setAlert("Upload failed: " + err.message + " — reselect the same file(s) and click \"Upload\" again to resume.", 'danger');
       this.disabled = false;
       this.textContent = 'Upload';
     }
   });
+
+  if (document.getElementById('ff-product').value) {
+    loadNgsSamples(document.getElementById('ff-product').value);
+  }
 })();
 </script>
 {% endblock %}

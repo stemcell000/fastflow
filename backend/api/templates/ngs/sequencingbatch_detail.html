@@ -7,9 +7,35 @@
 {% endblock %}
 {% block info_header %}Sequencing batch{% endblock %}
 {% block info_body %}
-  <dt class="col-sm-3">NGS Sample</dt><dd class="col-sm-9"><a href="{% url 'ngs:ngssample-detail' object.ngs_sample_id %}">{{ object.ngs_sample }}</a></dd>
+  <dt class="col-sm-3">Created</dt><dd class="col-sm-9">{{ object.created_at|date:"d/m/Y H:i" }}</dd>
 {% endblock %}
 {% block related_sections %}
+<div class="card mb-4">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    NGS samples
+    <a href="{% url 'ngs:sequencingbatch-update' object.pk %}" class="btn btn-sm btn-primary">Edit samples</a>
+  </div>
+  <div class="card-body p-0">
+    {% if batch_ngs_samples %}
+    <table class="table table-hover align-middle mb-0">
+      <thead><tr><th>Operating name</th><th>Index 1</th><th>Index 2</th><th>Final concentration</th></tr></thead>
+      <tbody>
+        {% for s in batch_ngs_samples %}
+        <tr>
+          <td><a href="{% url 'ngs:ngssample-detail' s.pk %}">{{ s.operating_name }}</a></td>
+          <td>{{ s.index_1|default:"—" }}</td>
+          <td>{{ s.index_2|default:"—" }}</td>
+          <td>{{ s.final_concentration|default:"—" }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="ff-empty mb-0">No NGS samples in this batch yet.</p>
+    {% endif %}
+  </div>
+</div>
+
 <div class="card mb-4">
   <div class="card-header d-flex justify-content-between align-items-center">
     Batch files

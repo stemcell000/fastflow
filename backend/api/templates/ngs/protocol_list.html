@@ -5,12 +5,14 @@
   <a href="{% url 'ngs:protocol-create' %}" class="btn btn-primary btn-sm">+ Add a protocol</a>
 {% endblock %}
 {% block table_head %}
-  <th>#</th><th>Primer pair</th><th>Sample</th><th>Comment</th><th>Created</th><th class="text-end">Actions</th>
+  <th>#</th><th>Primer pair</th><th>Samples</th><th>Comment</th><th>Created</th><th class="text-end">Actions</th>
 {% endblock %}
 {% block table_row %}
   <td><a href="{% url 'ngs:protocol-detail' object.pk %}">#{{ object.pk }}</a></td>
   <td>{{ object.primer_pair|default:"—" }}</td>
-  <td><a href="{% url 'ngs:sample-detail' object.sample_id %}">{{ object.sample }}</a></td>
+  <td>
+    {% for s in object.samples.all %}<a href="{% url 'ngs:sample-detail' s.pk %}">{{ s.name }}</a>{% if not forloop.last %}, {% endif %}{% empty %}—{% endfor %}
+  </td>
   <td>{{ object.commentary|default:"—"|truncatechars:60 }}</td>
   <td>{{ object.created_at|date:"d/m/Y" }}</td>
   <td class="text-end">

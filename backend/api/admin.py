@@ -7,7 +7,8 @@ from django.contrib import messages
 
 from .models import (
     Sample, Protocol, NgsSample, SequencingBatch, SequencingBatchFile,
-    SequencingProduct, Fastq, FastqFile, ChunkedUpload, ManualRun, Script, Setting, Count, Analysis,
+    SequencingProduct, Fastq, FastqFile, ChunkedUpload, ManualRun, Script, ScriptParameter,
+    Setting, Count, Analysis,
     PipelineTemplate, PipelineStep, PipelineRun, StepRun, StepArtifact,
 )
 
@@ -67,6 +68,10 @@ def import_samples(f):
 
 
 def import_protocols(f):
+    # Protocol <-> Sample is many-to-many: a row adds `sample_name` to the
+    # protocol identified by `primer_pair`, creating that protocol on first
+    # use. Repeat the same primer_pair on several rows (different
+    # sample_name) to associate multiple samples with one protocol.
     created, skipped, errors = 0, 0, []
     for i, row in enumerate(_read_csv(f), 2):
         sample_name = row.get("sample_name", "").strip()
@@ -78,16 +83,21 @@ def import_protocols(f):
             errors.append(f"Row {i}: Sample '{sample_name}' not found."); skipped += 1; continue
         except Sample.MultipleObjectsReturned:
             errors.append(f"Row {i}: Multiple samples named '{sample_name}'."); skipped += 1; continue
-        _, was_created = Protocol.objects.get_or_create(
-            sample=sample, primer_pair=row.get("primer_pair", "").strip(),
+        protocol, was_created = Protocol.objects.get_or_create(
+            primer_pair=row.get("primer_pair", "").strip(),
             defaults={"commentary": row.get("commentary", "").strip()},
         )
+        protocol.samples.add(sample)
         created += 1 if was_created else 0
         skipped += 0 if was_created else 1
     return {"created": created, "skipped": skipped, "errors": errors}
 
 
 def import_ngs_samples(f):
+    # One row = one NGS sample for one (protocol, sample) pair. `sample` is
+    # unique on NgsSample (a sample is sequenced-prepped at most once), so
+    # re-importing the same protocol_sample_name updates it instead of
+    # erroring.
     created, skipped, errors = 0, 0, []
     for i, row in enumerate(_read_csv(f), 2):
         primer_pair = row.get("protocol_primer_pair", "").strip()
@@ -96,15 +106,23 @@ def import_ngs_samples(f):
             errors.append(f"Row {i}: 'protocol_primer_pair' and 'protocol_sample_name' are required.")
             skipped += 1; continue
         try:
-            protocol = Protocol.objects.get(primer_pair=primer_pair, sample__name=sample_name)
+            protocol = Protocol.objects.get(primer_pair=primer_pair, samples__name=sample_name)
         except Protocol.DoesNotExist:
             errors.append(f"Row {i}: Protocol '{primer_pair}' / '{sample_name}' not found.")
             skipped += 1; continue
         except Protocol.MultipleObjectsReturned:
             errors.append(f"Row {i}: Multiple matching protocols."); skipped += 1; continue
+        sample = protocol.samples.get(name=sample_name)
+        operating_name = row.get("operating_name", "").strip() or sample_name
         _, was_created = NgsSample.objects.get_or_create(
-            protocol=protocol, index=row.get("index", "").strip(),
-            defaults={"final_concentration": _parse_float(row.get("final_concentration", ""))},
+            sample=sample,
+            defaults={
+                "protocol": protocol,
+                "operating_name": operating_name,
+                "index_1": row.get("index_1", "").strip(),
+                "index_2": row.get("index_2", "").strip(),
+                "final_concentration": _parse_float(row.get("final_concentration", "")),
+            },
         )
         created += 1 if was_created else 0
         skipped += 0 if was_created else 1
@@ -112,22 +130,32 @@ def import_ngs_samples(f):
 
 
 def import_sequencing_batches(f):
+    # A batch pools several NGS samples together (one-to-many): rows sharing
+    # the same 'batch_key' are added to the same new SequencingBatch. Only
+    # NGS samples with a non-empty index_1 can be pooled into a batch.
     created, skipped, errors = 0, 0, []
+    batches_by_key = {}
     for i, row in enumerate(_read_csv(f), 2):
-        ngs_index   = row.get("ngs_sample_index", "").strip()
+        index_1     = row.get("ngs_sample_index_1", "").strip()
         primer_pair = row.get("ngs_sample_protocol_primer_pair", "").strip()
-        if not ngs_index:
-            errors.append(f"Row {i}: 'ngs_sample_index' is required."); skipped += 1; continue
-        qs = NgsSample.objects.filter(index=ngs_index)
+        batch_key   = row.get("batch_key", "").strip() or f"__row_{i}"
+        if not index_1:
+            errors.append(f"Row {i}: 'ngs_sample_index_1' is required."); skipped += 1; continue
+        qs = NgsSample.objects.exclude(index_1="").filter(index_1=index_1)
         if primer_pair:
             qs = qs.filter(protocol__primer_pair=primer_pair)
         try:
             ngs_sample = qs.get()
         except NgsSample.DoesNotExist:
-            errors.append(f"Row {i}: NGS Sample '{ngs_index}' not found."); skipped += 1; continue
+            errors.append(f"Row {i}: NGS Sample with index_1='{index_1}' not found."); skipped += 1; continue
         except NgsSample.MultipleObjectsReturned:
-            errors.append(f"Row {i}: Ambiguous '{ngs_index}' — specify primer_pair."); skipped += 1; continue
-        SequencingBatch.objects.create(ngs_sample=ngs_sample)
+            errors.append(f"Row {i}: Ambiguous index_1='{index_1}' — specify ngs_sample_protocol_primer_pair."); skipped += 1; continue
+        batch = batches_by_key.get(batch_key)
+        if batch is None:
+            batch = SequencingBatch.objects.create()
+            batches_by_key[batch_key] = batch
+        ngs_sample.sequencing_batch = batch
+        ngs_sample.save(update_fields=["sequencing_batch"])
         created += 1
     return {"created": created, "skipped": skipped, "errors": errors}
 
@@ -173,6 +201,46 @@ def import_sequencing_products(f):
     return {"created": created, "skipped": skipped, "errors": errors}
 
 
+def import_fastq(f):
+    created, skipped, errors = 0, 0, []
+    for i, row in enumerate(_read_csv(f), 2):
+        product_id = _parse_int(row.get("sequencing_product_id", ""))
+        if not product_id:
+            errors.append(f"Row {i}: 'sequencing_product_id' is required."); skipped += 1; continue
+        try:
+            product = SequencingProduct.objects.get(pk=product_id)
+        except SequencingProduct.DoesNotExist:
+            errors.append(f"Row {i}: SequencingProduct id={product_id} not found."); skipped += 1; continue
+        ngs_sample = None
+        ngs_sample_id = _parse_int(row.get("ngs_sample_id", ""))
+        if ngs_sample_id:
+            try:
+                ngs_sample = NgsSample.objects.get(pk=ngs_sample_id)
+            except NgsSample.DoesNotExist:
+                errors.append(f"Row {i}: NgsSample id={ngs_sample_id} not found."); skipped += 1; continue
+        Fastq.objects.create(sequencing_product=product, ngs_sample=ngs_sample)
+        created += 1
+    return {"created": created, "skipped": skipped, "errors": errors}
+
+
+def import_script_parameters(f):
+    created, skipped, errors = 0, 0, []
+    for i, row in enumerate(_read_csv(f), 2):
+        script_id = _parse_int(row.get("script_id", ""))
+        name = row.get("name", "").strip()
+        if not script_id or not name:
+            errors.append(f"Row {i}: 'script_id' and 'name' are required."); skipped += 1; continue
+        try:
+            script = Script.objects.get(pk=script_id)
+        except Script.DoesNotExist:
+            errors.append(f"Row {i}: Script id={script_id} not found."); skipped += 1; continue
+        ScriptParameter.objects.create(
+            script=script, name=name, description=row.get("description", "").strip(),
+        )
+        created += 1
+    return {"created": created, "skipped": skipped, "errors": errors}
+
+
 def _import_simple(f, model_class, fk_field, fk_model, fk_col):
     created, skipped, errors = 0, 0, []
     for i, row in enumerate(_read_csv(f), 2):
@@ -195,10 +263,11 @@ IMPORTERS = {
     "sequencing_batches":     import_sequencing_batches,
     "sequencing_batch_files": import_sequencing_batch_files,
     "sequencing_products":    import_sequencing_products,
-    "fastq":        lambda f: _import_simple(f, Fastq,        "sequencing_product", SequencingProduct, "sequencing_product_id"),
+    "fastq":              import_fastq,
     "fastq_files":  lambda f: _import_simple(f, FastqFile,    "fastq",              Fastq,             "fastq_id"),
-    "manual_runs":  lambda f: _import_simple(f, ManualRun,    "fastq",              Fastq,             "fastq_id"),
+    "manual_runs":  lambda f: _import_simple(f, ManualRun,    "sequencing_product", SequencingProduct, "sequencing_product_id"),
     "scripts":      lambda f: _import_simple(f, Script,       "manual_run",         ManualRun,         "manual_run_id"),
+    "script_parameters":  import_script_parameters,
     "settings":     lambda f: _import_simple(f, Setting,      "script",             Script,            "script_id"),
     "counts":       lambda f: _import_simple(f, Count,        "manual_run",         ManualRun,         "manual_run_id"),
     "analysis":     lambda f: _import_simple(f, Analysis,     "manual_run",         ManualRun,         "manual_run_id"),
@@ -273,19 +342,31 @@ class SampleAdmin(CsvImportMixin, admin.ModelAdmin):
 
 @admin.register(Protocol)
 class ProtocolAdmin(CsvImportMixin, admin.ModelAdmin):
-    importer_key  = "protocols"
-    list_display  = ('id', 'primer_pair', 'sample', 'created_at')
-    list_filter   = ('created_at',)
-    search_fields = ('primer_pair', 'commentary')
-    raw_id_fields = ('sample',)
+    importer_key    = "protocols"
+    list_display    = ('id', 'primer_pair', 'sample_list', 'created_at')
+    list_filter     = ('created_at',)
+    search_fields   = ('primer_pair', 'commentary')
+    filter_horizontal = ('samples',)
+
+    def sample_list(self, obj):
+        return ", ".join(s.name for s in obj.samples.all())
+    sample_list.short_description = "Samples"
 
 
 @admin.register(NgsSample)
 class NgsSampleAdmin(CsvImportMixin, admin.ModelAdmin):
     importer_key  = "ngs_samples"
-    list_display  = ('id', 'index', 'final_concentration', 'protocol')
-    search_fields = ('index',)
-    raw_id_fields = ('protocol',)
+    list_display  = ('id', 'operating_name', 'sample', 'index_1', 'index_2', 'final_concentration', 'protocol', 'sequencing_batch')
+    search_fields = ('operating_name', 'index_1', 'index_2')
+    raw_id_fields = ('protocol', 'sample', 'sequencing_batch')
+
+
+class NgsSampleInline(admin.TabularInline):
+    model = NgsSample
+    fk_name = 'sequencing_batch'
+    extra = 0
+    fields = ('operating_name', 'index_1', 'index_2', 'final_concentration')
+    show_change_link = True
 
 
 class SequencingBatchFileInline(admin.TabularInline):
@@ -302,9 +383,12 @@ class SequencingProductInline(admin.TabularInline):
 @admin.register(SequencingBatch)
 class SequencingBatchAdmin(CsvImportMixin, admin.ModelAdmin):
     importer_key  = "sequencing_batches"
-    list_display  = ('id', 'ngs_sample')
-    inlines       = [SequencingBatchFileInline, SequencingProductInline]
-    raw_id_fields = ('ngs_sample',)
+    list_display  = ('id', 'ngs_sample_count', 'created_at')
+    inlines       = [NgsSampleInline, SequencingBatchFileInline, SequencingProductInline]
+
+    def ngs_sample_count(self, obj):
+        return obj.ngs_samples.count()
+    ngs_sample_count.short_description = "NGS samples"
 
 
 @admin.register(SequencingBatchFile)
@@ -319,12 +403,17 @@ class FastqInline(admin.TabularInline):
     extra = 0
 
 
+class ManualRunInline(admin.StackedInline):
+    model = ManualRun
+    extra = 0
+
+
 @admin.register(SequencingProduct)
 class SequencingProductAdmin(CsvImportMixin, admin.ModelAdmin):
     importer_key  = "sequencing_products"
     list_display  = ('id', 'date', 'sequencing_machine', 'flowcell', 'read_length', 'read_depth', 'custom_recipe')
     list_filter   = ('sequencing_machine', 'custom_recipe')
-    inlines       = [FastqInline]
+    inlines       = [FastqInline, ManualRunInline]
     raw_id_fields = ('sequencing_batch',)
 
 
@@ -333,17 +422,12 @@ class FastqFileInline(admin.TabularInline):
     extra = 1
 
 
-class ManualRunInline(admin.TabularInline):
-    model = ManualRun
-    extra = 0
-
-
 @admin.register(Fastq)
 class FastqAdmin(CsvImportMixin, admin.ModelAdmin):
     importer_key  = "fastq"
-    list_display  = ('id', 'sequencing_product')
-    inlines       = [FastqFileInline, ManualRunInline]
-    raw_id_fields = ('sequencing_product',)
+    list_display  = ('id', 'sequencing_product', 'ngs_sample')
+    inlines       = [FastqFileInline]
+    raw_id_fields = ('sequencing_product', 'ngs_sample')
 
 
 @admin.register(FastqFile)
@@ -387,14 +471,19 @@ class AnalysisInline(admin.TabularInline):
 @admin.register(ManualRun)
 class ManualRunAdmin(CsvImportMixin, admin.ModelAdmin):
     importer_key  = "manual_runs"
-    list_display  = ('id', 'fastq')
+    list_display  = ('id', 'sequencing_product')
     inlines       = [ScriptInline, CountInline, AnalysisInline]
-    raw_id_fields = ('fastq',)
+    raw_id_fields = ('sequencing_product',)
 
 
 class SettingInline(admin.TabularInline):
     model = Setting
     extra = 0
+
+
+class ScriptParameterInline(admin.TabularInline):
+    model = ScriptParameter
+    extra = 1
 
 
 @admin.register(Script)
@@ -403,8 +492,15 @@ class ScriptAdmin(CsvImportMixin, admin.ModelAdmin):
     list_display  = ('id', 'name', 'language', 'version', 'manual_run', 'created_at')
     list_filter   = ('language',)
     search_fields = ('name', 'comment')
-    inlines       = [SettingInline]
+    inlines       = [ScriptParameterInline, SettingInline]
     raw_id_fields = ('manual_run',)
+
+
+@admin.register(ScriptParameter)
+class ScriptParameterAdmin(CsvImportMixin, admin.ModelAdmin):
+    importer_key  = "script_parameters"
+    list_display  = ('id', 'script', 'name', 'description')
+    raw_id_fields = ('script',)
 
 
 @admin.register(Setting)

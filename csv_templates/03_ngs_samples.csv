@@ -1,2 +1,2 @@
-protocol_primer_pair,protocol_sample_name,index,final_concentration
-Primer_F1/R1,Sample_A,IDT_i7_101,2.5
+protocol_primer_pair,protocol_sample_name,operating_name,index_1,index_2,final_concentration
+Primer_F1/R1,Sample_A,Sample_A_seq1,IDT_i7_101,IDT_i5_101,2.5

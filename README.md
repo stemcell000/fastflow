@@ -1,7 +1,7 @@
-# FastFlow
+# Swirl
 
 Outil interne de suivi de pipeline NGS (séquençage nouvelle génération) pour
-l'Institut de la Vision. FastFlow trace la chaîne complète d'un échantillon,
+l'Institut de la Vision. Swirl trace la chaîne complète d'un échantillon,
 de sa réception jusqu'aux résultats d'analyse bio-informatique :
 
 ```
@@ -109,7 +109,7 @@ la précédente) :
 
 Les colonnes de type fichier sont ignorées à l'import et doivent être
 déposées manuellement ensuite. Un guide détaillé destiné aux utilisateurs non
-techniques est disponible : [`guide_import_csv_fastflow.docx`](guide_import_csv_fastflow.docx).
+techniques est disponible : [`guide_import_csv_swirl.docx`](guide_import_csv_swirl.docx).
 
 ## Git
 

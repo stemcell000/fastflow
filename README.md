@@ -92,19 +92,20 @@ importés **dans l'ordre** (chaque étape référence les identifiants créés p
 la précédente) :
 
 1. `01_samples.csv`
-2. `02_protocols.csv`
-3. `03_ngs_samples.csv`
-4. `04_sequencing_batches.csv`
-5. `05_sequencing_batch_files.csv`
-6. `06_sequencing_products.csv`
-7. `07_fastq.csv`
-8. `08_fastq_files.csv`
-9. `09_manual_runs.csv`
-10. `10_scripts.csv`
-11. `10b_script_parameters.csv`
-12. `11_settings.csv`
-13. `12_counts.csv`
-14. `13_analysis.csv`
+2. `01b_primers.csv`
+3. `02_protocols.csv`
+4. `03_ngs_samples.csv`
+5. `04_sequencing_batches.csv`
+6. `05_sequencing_batch_files.csv`
+7. `06_sequencing_products.csv`
+8. `07_fastq.csv`
+9. `08_fastq_files.csv`
+10. `09_manual_runs.csv`
+11. `10_scripts.csv`
+12. `10b_script_parameters.csv`
+13. `11_settings.csv`
+14. `12_counts.csv`
+15. `13_analysis.csv`
 
 Les colonnes de type fichier sont ignorées à l'import et doivent être
 déposées manuellement ensuite. Un guide détaillé destiné aux utilisateurs non

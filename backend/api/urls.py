@@ -24,6 +24,7 @@ urlpatterns = [
     path('protocols/new/', _v(views.ProtocolCreateView), name='protocol-create'),
     path('protocols/<int:pk>/edit/', _v(views.ProtocolUpdateView), name='protocol-update'),
     path('protocols/<int:pk>/delete/', _v(views.ProtocolDeleteView), name='protocol-delete'),
+    path('primers/quick-create/', login_required(views.primer_quick_create), name='primer-quick-create'),
 
     # NGS Samples
     path('ngs-samples/', _v(views.NgsSampleListView), name='ngssample-list'),

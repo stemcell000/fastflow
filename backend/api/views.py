@@ -15,7 +15,7 @@ from django.views.generic import (
     ListView, DetailView, CreateView, UpdateView, DeleteView, TemplateView
 )
 from .models import (
-    Sample, Protocol, NgsSample, SequencingBatch, SequencingBatchFile,
+    Sample, Protocol, Primer, NgsSample, SequencingBatch, SequencingBatchFile,
     SequencingProduct, Fastq, FastqFile, ChunkedUpload, ManualRun, Script,
     ScriptParameter, ScriptLanguage, Setting, Count, Analysis,
     PipelineTemplate, PipelineStep, PipelineRun, StepRun, StepArtifact,
@@ -110,7 +110,17 @@ class ProtocolDetailView(DetailView):
         return ctx
 
 
-PROTOCOL_FIELDS = ['samples', 'primer_pair', 'commentary', 'protocol_description_file']
+PROTOCOL_FIELDS = ['name', 'samples', 'primer_1', 'primer_2', 'commentary', 'protocol_description_file']
+
+
+@require_POST
+def primer_quick_create(request):
+    """Quick primer creation from the protocol form."""
+    name = (request.POST.get('name') or '').strip()
+    if not name:
+        return JsonResponse({'ok': False, 'error': "The primer name is required."}, status=400)
+    primer, _ = Primer.objects.get_or_create(name=name)
+    return JsonResponse({'ok': True, 'id': primer.pk, 'label': str(primer)})
 
 
 class ProtocolCreateView(CreateView):
@@ -193,7 +203,7 @@ def ngssample_bulk_view(request):
             for err in row_errors:
                 messages.error(request, err)
         else:
-            messages.success(request, f'NGS samples saved for protocol "{protocol.primer_pair or protocol.pk}".')
+            messages.success(request, f'NGS samples saved for protocol "{protocol}".')
             return redirect('ngs:ngssample-list')
 
     rows = []
@@ -564,7 +574,7 @@ class ManualRunDeleteView(DeleteView):
 
 # ─── Scripts (standalone registry, independent of pipelines/manual runs) ──────
 
-SCRIPT_FIELDS = ['name', 'language', 'version', 'comment', 'script_file', 'manual_run']
+SCRIPT_FIELDS = ['name', 'language', 'version', 'comment', 'script_file', 'report_filename', 'manual_run']
 
 
 class ScriptListView(ListView):

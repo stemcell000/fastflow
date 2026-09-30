@@ -1,2 +1,2 @@
-batch_key,ngs_sample_index_1,ngs_sample_protocol_primer_pair
-1,IDT_i7_101,Primer_F1/R1
+batch_key,ngs_sample_index_1,ngs_sample_protocol_primer_1,ngs_sample_protocol_primer_2
+1,IDT_i7_101,Primer_F1,Primer_R1

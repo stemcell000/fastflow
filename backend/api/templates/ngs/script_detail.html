@@ -12,6 +12,7 @@
   <dt class="col-sm-3">Comment</dt><dd class="col-sm-9">{{ object.comment|default:"—" }}</dd>
   <dt class="col-sm-3">File</dt>
   <dd class="col-sm-9">{% if object.script_file %}<a href="{{ object.script_file.url }}" target="_blank" rel="noopener">Download</a>{% else %}—{% endif %}</dd>
+  <dt class="col-sm-3">Report filename</dt><dd class="col-sm-9"><code>{{ object.report_filename|default:"—" }}</code></dd>
   <dt class="col-sm-3">Manual run</dt>
   <dd class="col-sm-9">
     {% if object.manual_run %}<a href="{% url 'ngs:manualrun-detail' object.manual_run_id %}">Manual run #{{ object.manual_run_id }}</a>{% else %}<span class="text-muted">— (standalone script, not tied to a manual run)</span>{% endif %}

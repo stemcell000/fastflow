@@ -15,7 +15,7 @@
           <option value="" {% if not protocol %}selected disabled{% endif %}>— Choose a protocol —</option>
           {% for p in protocols %}
           <option value="{{ p.pk }}" {% if protocol.pk == p.pk %}selected{% endif %}>
-            #{{ p.pk }} — {{ p.primer_pair|default:"—" }} ({{ p.samples.count }} sample{{ p.samples.count|pluralize }})
+            #{{ p.pk }}{% if p.name %} — {{ p.name }}{% endif %} — {{ p.primer_1|default:"—" }} / {{ p.primer_2|default:"—" }} ({{ p.samples.count }} sample{{ p.samples.count|pluralize }})
           </option>
           {% endfor %}
         </select>
@@ -34,7 +34,7 @@
     <input type="hidden" name="protocol" value="{{ protocol.pk }}">
     <div class="card">
       <div class="card-header">
-        Protocol #{{ protocol.pk }} — {{ protocol.primer_pair|default:"—" }} ({{ rows|length }} sample{{ rows|length|pluralize }})
+        Protocol #{{ protocol.pk }}{% if protocol.name %} — {{ protocol.name }}{% endif %} — {{ protocol.primer_1|default:"—" }} / {{ protocol.primer_2|default:"—" }} ({{ rows|length }} sample{{ rows|length|pluralize }})
       </div>
       <div class="card-body p-0">
         <div class="table-responsive">

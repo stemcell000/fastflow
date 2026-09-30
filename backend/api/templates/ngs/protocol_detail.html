@@ -1,17 +1,19 @@
 {% extends "ngs/_detail_base.html" %}
-{% block page_title %}Protocol #{{ object.pk }}{% endblock %}
-{% block detail_title %}Protocol #{{ object.pk }}{% endblock %}
+{% block page_title %}{{ object.name|default:"Protocol" }} #{{ object.pk }}{% endblock %}
+{% block detail_title %}{{ object.name|default:"Protocol" }} #{{ object.pk }}{% endblock %}
 {% block detail_actions %}
   <a href="{% url 'ngs:protocol-update' object.pk %}" class="btn btn-outline-secondary btn-sm">Edit</a>
   <a href="{% url 'ngs:protocol-delete' object.pk %}" class="btn btn-outline-danger btn-sm">Delete</a>
 {% endblock %}
 {% block info_header %}Protocol{% endblock %}
 {% block info_body %}
+  <dt class="col-sm-3">Name</dt><dd class="col-sm-9">{{ object.name|default:"—" }}</dd>
   <dt class="col-sm-3">Samples</dt>
   <dd class="col-sm-9">
     {% for s in object.samples.all %}<a href="{% url 'ngs:sample-detail' s.pk %}">{{ s.name }}</a>{% if not forloop.last %}, {% endif %}{% empty %}—{% endfor %}
   </dd>
-  <dt class="col-sm-3">Primer pair</dt><dd class="col-sm-9">{{ object.primer_pair|default:"—" }}</dd>
+  <dt class="col-sm-3">Primer 1</dt><dd class="col-sm-9">{{ object.primer_1|default:"—" }}</dd>
+  <dt class="col-sm-3">Primer 2</dt><dd class="col-sm-9">{{ object.primer_2|default:"—" }}</dd>
   <dt class="col-sm-3">Comment</dt><dd class="col-sm-9">{{ object.commentary|default:"—" }}</dd>
   <dt class="col-sm-3">Description file</dt>
   <dd class="col-sm-9">

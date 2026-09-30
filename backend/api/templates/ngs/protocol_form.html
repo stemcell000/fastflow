@@ -1,2 +1,59 @@
-{% extends "ngs/_form_base.html" %}
-{% block form_title %}Protocol{% endblock %}
+{% extends "base.html" %}
+{% load crispy_forms_tags %}
+{% block page_title %}Protocol{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-12 col-lg-8 col-xl-6">
+    <div class="ff-page-header">
+      <h1>{{ object|yesno:"Edit,Add" }} — Protocol</h1>
+    </div>
+    <div class="card">
+      <div class="card-body p-4">
+        <form method="post" enctype="multipart/form-data" novalidate>
+          {% csrf_token %}
+          {{ form|crispy }}
+          <div class="d-flex gap-2 mt-2">
+            <button type="submit" class="btn btn-primary">Save</button>
+            <a href="{% url 'ngs:protocol-list' %}" class="btn btn-outline-secondary">Cancel</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+(function () {
+  function wireQuickAdd(selectId) {
+    const select = document.getElementById(selectId);
+    if (!select) return;
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'btn btn-outline-dark btn-sm mt-1';
+    btn.textContent = '+ New primer';
+    select.insertAdjacentElement('afterend', btn);
+    btn.addEventListener('click', async function () {
+      const name = window.prompt('New primer name:');
+      if (!name || !name.trim()) return;
+      const resp = await fetch("{% url 'ngs:primer-quick-create' %}", {
+        method: 'POST',
+        headers: { 'X-CSRFToken': document.querySelector('input[name=csrfmiddlewaretoken]').value },
+        body: new URLSearchParams({ name: name.trim() }),
+      });
+      const data = await resp.json();
+      if (!data.ok) { alert(data.error || 'Could not create the primer.'); return; }
+      const option = document.createElement('option');
+      option.value = data.id;
+      option.textContent = data.label;
+      select.appendChild(option);
+      select.value = data.id;
+    });
+  }
+  wireQuickAdd('id_primer_1');
+  wireQuickAdd('id_primer_2');
+})();
+</script>
+{% endblock %}

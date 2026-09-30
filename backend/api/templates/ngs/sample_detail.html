@@ -44,12 +44,14 @@
   <div class="card-body p-0">
     {% if protocols %}
     <table class="table table-hover align-middle mb-0">
-      <thead><tr><th>#</th><th>Primer pair</th><th>Comment</th><th class="text-end">Actions</th></tr></thead>
+      <thead><tr><th>#</th><th>Name</th><th>Primer 1</th><th>Primer 2</th><th>Comment</th><th class="text-end">Actions</th></tr></thead>
       <tbody>
         {% for p in protocols %}
         <tr>
           <td><a href="{% url 'ngs:protocol-detail' p.pk %}">#{{ p.pk }}</a></td>
-          <td>{{ p.primer_pair|default:"—" }}</td>
+          <td>{{ p.name|default:"—" }}</td>
+          <td>{{ p.primer_1|default:"—" }}</td>
+          <td>{{ p.primer_2|default:"—" }}</td>
           <td>{{ p.commentary|default:"—"|truncatechars:60 }}</td>
           <td class="text-end">
             <a href="{% url 'ngs:protocol-update' p.pk %}" class="btn btn-outline-secondary btn-sm">Edit</a>

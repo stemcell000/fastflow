@@ -83,7 +83,7 @@ class Sample(models.Model):
         max_length=255, blank=True, verbose_name='Injection type (other)',
         help_text="Shown only when Injection type = Other.",
     )
-    description = models.CharField(max_length=1000, blank=True)
+    description = models.TextField(blank=True)
 
     class Meta:
         ordering = ['-created_at']
@@ -92,9 +92,28 @@ class Sample(models.Model):
         return f"{self.name} ({self.project_name})" if self.project_name else self.name
 
 
+class Primer(models.Model):
+    """Registry of individual primers, referenced in pairs by Protocol."""
+    name = models.CharField(max_length=255, unique=True)
+
+    class Meta:
+        ordering = ['name']
+
+    def __str__(self):
+        return self.name
+
+
 class Protocol(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
-    primer_pair = models.CharField(max_length=255, blank=True)
+    name = models.CharField(max_length=255, blank=True)
+    # Primers are used in pairs (forward/reverse) — two separate associations
+    # to the Primer registry rather than one free-text field.
+    primer_1 = models.ForeignKey(
+        Primer, on_delete=models.SET_NULL, null=True, blank=True, related_name='protocols_as_primer_1',
+    )
+    primer_2 = models.ForeignKey(
+        Primer, on_delete=models.SET_NULL, null=True, blank=True, related_name='protocols_as_primer_2',
+    )
     commentary = models.TextField(blank=True)
     protocol_description_file = models.FileField(
         upload_to='protocols/descriptions/', blank=True, null=True
@@ -108,7 +127,11 @@ class Protocol(models.Model):
         ordering = ['-created_at']
 
     def __str__(self):
-        return f"Protocol #{self.pk} — {self.primer_pair}"
+        primers = " / ".join(p.name for p in (self.primer_1, self.primer_2) if p)
+        label = self.name or primers
+        if self.name and primers:
+            label = f"{self.name} ({primers})"
+        return f"Protocol #{self.pk} — {label}" if label else f"Protocol #{self.pk}"
 
 
 class NgsSample(models.Model):
@@ -280,6 +303,13 @@ class Script(models.Model):
     language = models.CharField(max_length=20, choices=ScriptLanguage.choices, default=ScriptLanguage.PYTHON)
     version = models.CharField(max_length=50, blank=True)
     comment = models.CharField(max_length=1000, blank=True)
+    report_filename = models.CharField(
+        max_length=255, blank=True, default='report.json',
+        help_text=(
+            "Name of the JSON execution-report file this script writes to /work/out/ "
+            "(used to identify and display it on the pipeline run's report page)."
+        ),
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     manual_run = models.ForeignKey(
         ManualRun, on_delete=models.CASCADE, related_name='scripts', null=True, blank=True
@@ -398,8 +428,9 @@ class PipelineStep(models.Model):
             "Shell command executed in the container (cwd=/work). "
             "Inputs are available in /work/in/, outputs are expected in /work/out/. "
             "E.g.: python /work/script.py --input /work/in --output /work/out. "
-            "If the script writes a report.json file to /work/out/, it is captured "
-            "as the step's execution report and its contents are shown on the run's report page."
+            "If the script writes its report JSON file (name set on the Script itself, "
+            "default report.json) to /work/out/, it is captured as the step's execution "
+            "report and its contents are shown on the run's report page."
         ),
     )
     depends_on = models.ManyToManyField(

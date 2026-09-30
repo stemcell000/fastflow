@@ -27,7 +27,7 @@ TEMPLATES = {
             "condition",            # choices: ex_vivo, in_vivo, in_vitro
             "injection_type",       # choices: sub_retinal, intra_vitreal, other
             "injection_type_other", # free text, used only when injection_type = other
-            "description",          # optional
+            "description",          # optional, texte long
         ],
         "example": [
             "Sample_A",
@@ -47,21 +47,34 @@ TEMPLATES = {
             "Primary retinal cells treated with AAV9",
         ],
     },
+    "01b_primers.csv": {
+        "headers": [
+            "name",              # unique primer name/identifier
+        ],
+        "example": [
+            "Primer_F1",
+        ],
+    },
     "02_protocols.csv": {
         "headers": [
             "sample_name",       # FK → samples.name (doit exister en base)
-            "primer_pair",       # optionnel
+            "name",              # optionnel, nom libre du protocole
+            "primer_1",          # optionnel, FK → primers.name (créé automatiquement si absent)
+            "primer_2",          # optionnel, FK → primers.name (créé automatiquement si absent)
             "commentary",        # optionnel
         ],
         "example": [
             "Sample_A",
-            "Primer_F1/R1",
+            "Standard PCR",
+            "Primer_F1",
+            "Primer_R1",
             "Standard PCR protocol",
         ],
     },
     "03_ngs_samples.csv": {
         "headers": [
-            "protocol_primer_pair",    # FK → protocols.primer_pair
+            "protocol_primer_1",       # FK → protocols.primer_1.name (au moins un des deux primers requis)
+            "protocol_primer_2",       # FK → protocols.primer_2.name
             "protocol_sample_name",    # FK → one of protocols.samples.name (disambiguates which protocol usage)
             "operating_name",          # optional, defaults to protocol_sample_name if blank
             "index_1",                 # optional
@@ -69,7 +82,8 @@ TEMPLATES = {
             "final_concentration",     # float, optional
         ],
         "example": [
-            "Primer_F1/R1",
+            "Primer_F1",
+            "Primer_R1",
             "Sample_A",
             "Sample_A_seq1",
             "IDT_i7_101",
@@ -79,14 +93,16 @@ TEMPLATES = {
     },
     "04_sequencing_batches.csv": {
         "headers": [
-            "batch_key",                        # groups rows into the same batch (blank = one batch per row)
-            "ngs_sample_index_1",               # FK → ngs_samples.index_1 (must be non-empty)
-            "ngs_sample_protocol_primer_pair",  # optional, disambiguates when index_1 isn't unique
+            "batch_key",                         # groups rows into the same batch (blank = one batch per row)
+            "ngs_sample_index_1",                # FK → ngs_samples.index_1 (must be non-empty)
+            "ngs_sample_protocol_primer_1",       # optional, disambiguates when index_1 isn't unique
+            "ngs_sample_protocol_primer_2",       # optional, disambiguates when index_1 isn't unique
         ],
         "example": [
             "1",
             "IDT_i7_101",
-            "Primer_F1/R1",
+            "Primer_F1",
+            "Primer_R1",
         ],
     },
     "05_sequencing_batch_files.csv": {

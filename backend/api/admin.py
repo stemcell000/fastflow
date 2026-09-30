@@ -6,7 +6,7 @@ from django.template.response import TemplateResponse
 from django.contrib import messages
 
 from .models import (
-    Sample, Protocol, NgsSample, SequencingBatch, SequencingBatchFile,
+    Sample, Protocol, Primer, NgsSample, SequencingBatch, SequencingBatchFile,
     SequencingProduct, Fastq, FastqFile, ChunkedUpload, ManualRun, Script, ScriptParameter,
     Setting, Count, Analysis,
     PipelineTemplate, PipelineStep, PipelineRun, StepRun, StepArtifact,
@@ -67,11 +67,24 @@ def import_samples(f):
     return {"created": created, "skipped": skipped, "errors": errors}
 
 
+def import_primers(f):
+    created, skipped, errors = 0, 0, []
+    for i, row in enumerate(_read_csv(f), 2):
+        name = row.get("name", "").strip()
+        if not name:
+            errors.append(f"Row {i}: 'name' is required."); skipped += 1; continue
+        _, was_created = Primer.objects.get_or_create(name=name)
+        created += 1 if was_created else 0
+        skipped += 0 if was_created else 1
+    return {"created": created, "skipped": skipped, "errors": errors}
+
+
 def import_protocols(f):
     # Protocol <-> Sample is many-to-many: a row adds `sample_name` to the
-    # protocol identified by `primer_pair`, creating that protocol on first
-    # use. Repeat the same primer_pair on several rows (different
-    # sample_name) to associate multiple samples with one protocol.
+    # protocol identified by its (primer_1, primer_2) pair, creating that
+    # protocol (and any missing Primer) on first use. Repeat the same primer
+    # pair on several rows (different sample_name) to associate multiple
+    # samples with one protocol.
     created, skipped, errors = 0, 0, []
     for i, row in enumerate(_read_csv(f), 2):
         sample_name = row.get("sample_name", "").strip()
@@ -83,9 +96,18 @@ def import_protocols(f):
             errors.append(f"Row {i}: Sample '{sample_name}' not found."); skipped += 1; continue
         except Sample.MultipleObjectsReturned:
             errors.append(f"Row {i}: Multiple samples named '{sample_name}'."); skipped += 1; continue
+
+        primer_1_name = row.get("primer_1", "").strip()
+        primer_2_name = row.get("primer_2", "").strip()
+        primer_1 = Primer.objects.get_or_create(name=primer_1_name)[0] if primer_1_name else None
+        primer_2 = Primer.objects.get_or_create(name=primer_2_name)[0] if primer_2_name else None
+
         protocol, was_created = Protocol.objects.get_or_create(
-            primer_pair=row.get("primer_pair", "").strip(),
-            defaults={"commentary": row.get("commentary", "").strip()},
+            primer_1=primer_1, primer_2=primer_2,
+            defaults={
+                "name": row.get("name", "").strip(),
+                "commentary": row.get("commentary", "").strip(),
+            },
         )
         protocol.samples.add(sample)
         created += 1 if was_created else 0
@@ -100,15 +122,24 @@ def import_ngs_samples(f):
     # erroring.
     created, skipped, errors = 0, 0, []
     for i, row in enumerate(_read_csv(f), 2):
-        primer_pair = row.get("protocol_primer_pair", "").strip()
+        primer_1_name = row.get("protocol_primer_1", "").strip()
+        primer_2_name = row.get("protocol_primer_2", "").strip()
         sample_name = row.get("protocol_sample_name", "").strip()
-        if not primer_pair or not sample_name:
-            errors.append(f"Row {i}: 'protocol_primer_pair' and 'protocol_sample_name' are required.")
+        if not sample_name or (not primer_1_name and not primer_2_name):
+            errors.append(
+                f"Row {i}: 'protocol_sample_name' and at least one of "
+                "'protocol_primer_1'/'protocol_primer_2' are required."
+            )
             skipped += 1; continue
+        qs = Protocol.objects.filter(samples__name=sample_name)
+        if primer_1_name:
+            qs = qs.filter(primer_1__name=primer_1_name)
+        if primer_2_name:
+            qs = qs.filter(primer_2__name=primer_2_name)
         try:
-            protocol = Protocol.objects.get(primer_pair=primer_pair, samples__name=sample_name)
+            protocol = qs.get()
         except Protocol.DoesNotExist:
-            errors.append(f"Row {i}: Protocol '{primer_pair}' / '{sample_name}' not found.")
+            errors.append(f"Row {i}: Protocol '{primer_1_name}/{primer_2_name}' / '{sample_name}' not found.")
             skipped += 1; continue
         except Protocol.MultipleObjectsReturned:
             errors.append(f"Row {i}: Multiple matching protocols."); skipped += 1; continue
@@ -136,20 +167,23 @@ def import_sequencing_batches(f):
     created, skipped, errors = 0, 0, []
     batches_by_key = {}
     for i, row in enumerate(_read_csv(f), 2):
-        index_1     = row.get("ngs_sample_index_1", "").strip()
-        primer_pair = row.get("ngs_sample_protocol_primer_pair", "").strip()
+        index_1      = row.get("ngs_sample_index_1", "").strip()
+        primer_1_name = row.get("ngs_sample_protocol_primer_1", "").strip()
+        primer_2_name = row.get("ngs_sample_protocol_primer_2", "").strip()
         batch_key   = row.get("batch_key", "").strip() or f"__row_{i}"
         if not index_1:
             errors.append(f"Row {i}: 'ngs_sample_index_1' is required."); skipped += 1; continue
         qs = NgsSample.objects.exclude(index_1="").filter(index_1=index_1)
-        if primer_pair:
-            qs = qs.filter(protocol__primer_pair=primer_pair)
+        if primer_1_name:
+            qs = qs.filter(protocol__primer_1__name=primer_1_name)
+        if primer_2_name:
+            qs = qs.filter(protocol__primer_2__name=primer_2_name)
         try:
             ngs_sample = qs.get()
         except NgsSample.DoesNotExist:
             errors.append(f"Row {i}: NGS Sample with index_1='{index_1}' not found."); skipped += 1; continue
         except NgsSample.MultipleObjectsReturned:
-            errors.append(f"Row {i}: Ambiguous index_1='{index_1}' — specify ngs_sample_protocol_primer_pair."); skipped += 1; continue
+            errors.append(f"Row {i}: Ambiguous index_1='{index_1}' — specify ngs_sample_protocol_primer_1/2."); skipped += 1; continue
         batch = batches_by_key.get(batch_key)
         if batch is None:
             batch = SequencingBatch.objects.create()
@@ -258,6 +292,7 @@ def _import_simple(f, model_class, fk_field, fk_model, fk_col):
 
 IMPORTERS = {
     "samples":                import_samples,
+    "primers":                import_primers,
     "protocols":              import_protocols,
     "ngs_samples":            import_ngs_samples,
     "sequencing_batches":     import_sequencing_batches,
@@ -340,12 +375,19 @@ class SampleAdmin(CsvImportMixin, admin.ModelAdmin):
     search_fields = ('name', 'project_name', 'biological_model', 'organ')
 
 
+@admin.register(Primer)
+class PrimerAdmin(CsvImportMixin, admin.ModelAdmin):
+    importer_key  = "primers"
+    list_display  = ('id', 'name')
+    search_fields = ('name',)
+
+
 @admin.register(Protocol)
 class ProtocolAdmin(CsvImportMixin, admin.ModelAdmin):
     importer_key    = "protocols"
-    list_display    = ('id', 'primer_pair', 'sample_list', 'created_at')
+    list_display    = ('id', 'name', 'primer_1', 'primer_2', 'sample_list', 'created_at')
     list_filter     = ('created_at',)
-    search_fields   = ('primer_pair', 'commentary')
+    search_fields   = ('name', 'primer_1__name', 'primer_2__name', 'commentary')
     filter_horizontal = ('samples',)
 
     def sample_list(self, obj):
